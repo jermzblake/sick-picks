@@ -2,6 +2,7 @@
 
 import os
 
+import dj_database_url
 from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
@@ -22,5 +23,9 @@ if not _database_url:
     )
 
 DATABASES = {
-    'default': database_from_url(_database_url, conn_max_age=60),
+    'default': dj_database_url.parse(
+        _database_url,
+        conn_max_age=60,
+        conn_health_checks=True,
+    ),
 }

@@ -2,6 +2,7 @@
 
 import os
 
+import dj_database_url
 from django.core.exceptions import ImproperlyConfigured
 
 from .base import *
@@ -30,7 +31,11 @@ if not _database_url:
     raise ImproperlyConfigured('DATABASE_URL is not set.')
 
 DATABASES = {
-    'default': database_from_url(_database_url, conn_max_age=0),
+    'default': dj_database_url.parse(
+        _database_url,
+        conn_max_age=0,
+        conn_health_checks=False,
+    ),
 }
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
