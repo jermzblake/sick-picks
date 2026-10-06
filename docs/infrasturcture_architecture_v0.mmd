@@ -1,0 +1,50 @@
+flowchart TB
+    User["Users<br/>Web Browser"]
+
+    GH["GitHub<br/>Source Code + CI/CD"]
+    Actions["GitHub Actions<br/>Scheduled Workflows"]
+    
+    Render["Render<br/>Free Web Service"]
+    
+    Django["Django Application"]
+    Views["Django Views<br/>SSR + HTMX"]
+    Services["Application / Domain Services<br/>Pick • Sync • Settlement"]
+    Admin["Django Admin"]
+    Commands["Management Commands<br/>sync_sports • settle_games"]
+    
+    Neon["Neon<br/>Serverless PostgreSQL"]
+    
+    Odds["The Odds API<br/>NFL Games + Spreads + Scores"]
+
+    User -->|"HTTPS"| Render
+    Render --> Django
+
+    Django --> Views
+    Django --> Services
+    Django --> Admin
+
+    Views --> Services
+    Admin --> Services
+
+    Actions -->|"Scheduled HTTPS request<br/>09:05 + 19:05 ET"| Render
+    Actions -.->|"Manual workflow dispatch"| Render
+
+    Render -->|"HTTPS"| Odds
+    Services --> Commands
+
+    Django -->|"TLS / DATABASE_URL"| Neon
+    Services --> Neon
+
+    Commands --> Services
+
+    GH -->|"Push / Merge"| Render
+
+    classDef external fill:#f5f5f5,stroke:#555
+    classDef app fill:#e8f0fe,stroke:#4a6fa5
+    classDef data fill:#e8f5e9,stroke:#4d7c4d
+    classDef automation fill:#fff3e0,stroke:#c77c22
+
+    class User,Odds,GH external
+    class Render,Django,Views,Services,Admin,Commands app
+    class Neon data
+    class Actions automation

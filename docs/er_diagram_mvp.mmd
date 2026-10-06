@@ -1,0 +1,61 @@
+erDiagram
+    USER ||--o{ PICK : makes
+    TEAM ||--o{ GAME : "home team"
+    TEAM ||--o{ GAME : "away team"
+    GAME ||--o{ GAME_LINE : has
+    GAME ||--o{ PICK : receives
+    TEAM ||--o{ PICK : "picked team"
+    GAME_LINE ||--o{ PICK : "locks line"
+
+    USER {
+        bigint id PK
+        string username UK
+        string email
+        string display_name
+        string password
+        boolean is_active
+        datetime date_joined
+    }
+
+    TEAM {
+        bigint id PK
+        string external_id UK
+        string name
+        string abbreviation
+    }
+
+    GAME {
+        bigint id PK
+        string external_id UK
+        int season
+        int week
+        bigint home_team_id FK
+        bigint away_team_id FK
+        datetime kickoff_at
+        string status
+        int home_score
+        int away_score
+        datetime created_at
+        datetime updated_at
+    }
+
+    GAME_LINE {
+        bigint id PK
+        bigint game_id FK
+        string source
+        string bookmaker
+        decimal home_spread
+        decimal away_spread
+        datetime captured_at
+    }
+
+    PICK {
+        bigint id PK
+        bigint user_id FK
+        bigint game_id FK
+        bigint picked_team_id FK
+        bigint game_line_id FK
+        string result
+        decimal points
+        datetime submitted_at
+    }

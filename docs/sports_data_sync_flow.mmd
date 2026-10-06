@@ -1,0 +1,43 @@
+flowchart TD
+    Start["GitHub Actions<br/>09:05 / 19:05 ET"]
+
+    Trigger["POST /internal/tasks/sync<br/>Authenticated internal endpoint"]
+
+    Sync["SportsSyncService"]
+
+    API["The Odds API"]
+
+    Normalize["Normalize Provider Data"]
+
+    Teams["Upsert Teams"]
+    Games["Upsert Games"]
+    Lines["Create / Update GameLine"]
+    Scores["Update Scores + Status"]
+
+    Settle["SettlementService"]
+    Picks["Update completed Picks"]
+
+    DB[("Neon PostgreSQL")]
+
+    Done["Sync Complete"]
+
+    Start --> Trigger
+    Trigger --> Sync
+    Sync --> API
+    API --> Normalize
+
+    Normalize --> Teams
+    Normalize --> Games
+    Normalize --> Lines
+    Normalize --> Scores
+
+    Teams --> DB
+    Games --> DB
+    Lines --> DB
+    Scores --> DB
+
+    DB --> Settle
+    Settle --> Picks
+    Picks --> DB
+
+    DB --> Done

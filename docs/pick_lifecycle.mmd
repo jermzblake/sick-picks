@@ -1,0 +1,31 @@
+stateDiagram-v2
+    [*] --> Upcoming
+
+    Upcoming --> Pickable : Before kickoff
+    Pickable --> Picked : User submits valid pick
+    Pickable --> Locked : Kickoff reached
+    Picked --> Locked : Kickoff reached
+
+    Locked --> Settling : Game becomes final
+    Settling --> Won : Pick covers spread
+    Settling --> Lost : Pick does not cover
+    Settling --> Push : Spread results in tie
+
+    Won --> [*]
+    Lost --> [*]
+    Push --> [*]
+
+    note right of Picked
+        Pick stores:
+        - user
+        - game
+        - picked team
+        - locked GameLine
+        - submitted_at
+    end note
+
+    note right of Settling
+        Settlement is idempotent.
+        Running settlement twice
+        produces the same result.
+    end note
