@@ -6,6 +6,7 @@ import dj_database_url
 from django.core.exceptions import ImproperlyConfigured
 
 from .base import *
+from .base import BASE_DIR
 
 DEBUG = False
 
@@ -23,7 +24,8 @@ if _render_hostname and _render_hostname not in ALLOWED_HOSTS:
     ALLOWED_HOSTS.append(_render_hostname)
 if not ALLOWED_HOSTS:
     raise ImproperlyConfigured(
-        'ALLOWED_HOSTS is not set. Provide a comma-separated list or RENDER_EXTERNAL_HOSTNAME.'
+        'ALLOWED_HOSTS is not set. Provide a comma-separated list or '
+        'RENDER_EXTERNAL_HOSTNAME.'
     )
 
 _database_url = os.environ.get('DATABASE_URL')
