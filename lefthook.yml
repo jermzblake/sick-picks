@@ -1,0 +1,14 @@
+pre-commit:
+  commands:
+    format:
+      glob: "*.py"
+      run: bash -c 'make format FILES="$*"' -- {staged_files}
+      stage_fixed: true
+    lint:
+      glob: "*.py"
+      run: bash -c 'make lint FILES="$*"' -- {staged_files}
+
+pre-push:
+  commands:
+    check:
+      run: make check

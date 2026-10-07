@@ -1,2 +1,2 @@
 def main() -> None:
-    print("Hello from sick-picks!")
+    print('Hello from sick-picks!')

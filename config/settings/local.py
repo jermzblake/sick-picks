@@ -2,10 +2,12 @@
 
 import os
 
+import dj_database_url
 from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
 from .base import *
+from .base import BASE_DIR
 
 load_dotenv(BASE_DIR / '.env')
 
@@ -18,9 +20,14 @@ ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 _database_url = os.environ.get('DATABASE_URL')
 if not _database_url:
     raise ImproperlyConfigured(
-        'DATABASE_URL is not set. Copy .env.example to .env and point it at your local Postgres.'
+        'DATABASE_URL is not set. Copy .env.example to .env and point it at '
+        'your local Postgres.'
     )
 
 DATABASES = {
-    'default': database_from_url(_database_url, conn_max_age=60),
+    'default': dj_database_url.parse(
+        _database_url,
+        conn_max_age=60,
+        conn_health_checks=True,
+    ),
 }

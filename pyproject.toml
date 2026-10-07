@@ -8,6 +8,7 @@ authors = [
 ]
 requires-python = ">=3.14"
 dependencies = [
+    "dj-database-url>=3.1.2",
     "django>=5.2,<5.3",
     "django-htmx>=1.29.0",
     "psycopg[binary]>=3.3.6",
@@ -17,6 +18,42 @@ dependencies = [
 [project.scripts]
 sick-picks = "sick_picks:main"
 
+[dependency-groups]
+dev = [
+    "django-stubs[compatible-mypy]",
+    "pytest",
+    "pytest-django",
+    "ruff",
+]
+
 [build-system]
 requires = ["uv_build>=0.12.23,<0.13.0"]
 build-backend = "uv_build"
+
+[tool.ruff]
+target-version = "py314"
+line-length = 88
+src = ["accounts", "config", "picks", "sports", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "DJ"]
+
+[tool.ruff.lint.per-file-ignores]
+"**/migrations/*.py" = ["E501"]
+"config/settings/local.py" = ["F403"]
+"config/settings/production.py" = ["F403"]
+
+[tool.ruff.format]
+quote-style = "single"
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings.local"
+python_files = ["test_*.py", "*_test.py", "tests.py"]
+
+[tool.mypy]
+plugins = ["mypy_django_plugin.main"]
+python_version = "3.14"
+exclude = ["(^|/)migrations/"]
+
+[tool.django-stubs]
+django_settings_module = "config.settings.local"
