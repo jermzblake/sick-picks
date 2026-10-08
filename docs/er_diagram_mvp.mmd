@@ -1,4 +1,7 @@
 erDiagram
+    LEAGUE ||--o{ SEASON : has
+    LEAGUE ||--o{ TEAM : has
+    SEASON ||--o{ GAME : has
     USER ||--o{ PICK : makes
     TEAM ||--o{ GAME : "home team"
     TEAM ||--o{ GAME : "away team"
@@ -6,6 +9,19 @@ erDiagram
     GAME ||--o{ PICK : receives
     TEAM ||--o{ PICK : "picked team"
     GAME_LINE ||--o{ PICK : "locks line"
+
+    LEAGUE {
+        bigint id PK
+        string name
+        string abbreviation
+        string sport
+    }
+
+    SEASON {
+        bigint id PK
+        bigint league_id FK
+        int year
+    }
 
     USER {
         bigint id PK
@@ -19,6 +35,7 @@ erDiagram
 
     TEAM {
         bigint id PK
+        bigint league_id FK
         string external_id UK
         string name
         string abbreviation
@@ -27,7 +44,7 @@ erDiagram
     GAME {
         bigint id PK
         string external_id UK
-        int season
+        bigint season_id FK
         int week
         bigint home_team_id FK
         bigint away_team_id FK
@@ -46,6 +63,10 @@ erDiagram
         string bookmaker
         decimal home_spread
         decimal away_spread
+        decimal home_spread_price
+        decimal away_spread_price
+        decimal home_moneyline
+        decimal away_moneyline
         datetime captured_at
     }
 
@@ -53,8 +74,11 @@ erDiagram
         bigint id PK
         bigint user_id FK
         bigint game_id FK
-        bigint picked_team_id FK
         bigint game_line_id FK
+        bigint picked_team_id FK
+        string pick_type
+        decimal line_value
+        decimal price
         string result
         decimal points
         datetime submitted_at
