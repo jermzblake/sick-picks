@@ -103,6 +103,34 @@ def test_game_line_rejects_snapshot_with_no_market():
         )
 
 
+def test_game_line_rejects_one_sided_spread_when_a_moneyline_is_present():
+    season, home, away = _slate()
+    game = make_game(season, home, away)
+    with pytest.raises(IntegrityError), transaction.atomic():
+        make_line(
+            game,
+            home_spread=Decimal('-3.0'),
+            away_spread=None,
+            home_spread_price=None,
+            away_spread_price=None,
+            home_moneyline=Decimal('1.500'),
+            away_moneyline=Decimal('2.750'),
+        )
+
+
+def test_game_line_rejects_one_sided_moneyline_when_a_spread_is_present():
+    season, home, away = _slate()
+    game = make_game(season, home, away)
+    with pytest.raises(IntegrityError), transaction.atomic():
+        make_line(
+            game,
+            home_spread=Decimal('-3.0'),
+            away_spread=Decimal('3.0'),
+            home_moneyline=Decimal('1.500'),
+            away_moneyline=None,
+        )
+
+
 def test_game_line_rejects_one_sided_spread():
     season, home, away = _slate()
     game = make_game(season, home, away)
