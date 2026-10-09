@@ -186,14 +186,23 @@ class GameLine(models.Model):
             models.CheckConstraint(
                 condition=(
                     Q(home_spread__isnull=True, away_spread__isnull=True)
-                    | Q(away_spread=-F('home_spread'))
+                    | (
+                        Q(home_spread__isnull=False, away_spread__isnull=False)
+                        & Q(away_spread=-F('home_spread'))
+                    )
                 ),
                 name='gameline_spread_opposites',
             ),
             models.CheckConstraint(
                 condition=(
                     Q(home_moneyline__isnull=True, away_moneyline__isnull=True)
-                    | Q(home_moneyline__gt=1, away_moneyline__gt=1)
+                    | (
+                        Q(
+                            home_moneyline__isnull=False,
+                            away_moneyline__isnull=False,
+                        )
+                        & Q(home_moneyline__gt=1, away_moneyline__gt=1)
+                    )
                 ),
                 name='gameline_moneyline_pair',
             ),
