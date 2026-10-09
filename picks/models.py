@@ -45,7 +45,7 @@ class Pick(models.Model):
     )
     price = models.DecimalField(
         max_digits=6,
-        decimal_places=0,
+        decimal_places=3,
         null=True,
         blank=True,
     )
@@ -75,6 +75,13 @@ class Pick(models.Model):
                     | Q(pick_type='moneyline', price__isnull=False)
                 ),
                 name='pick_market_terms_present',
+            ),
+            models.CheckConstraint(
+                condition=(
+                    Q(result__isnull=True)
+                    | Q(result__in=['win', 'loss', 'push', 'void'])
+                ),
+                name='pick_result_known',
             ),
         ]
         indexes = [

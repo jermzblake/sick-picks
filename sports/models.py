@@ -112,6 +112,19 @@ class Game(models.Model):
                 condition=~Q(home_team=F('away_team')),
                 name='game_home_away_differ',
             ),
+            models.CheckConstraint(
+                condition=Q(
+                    status__in=[
+                        'scheduled',
+                        'in_progress',
+                        'final',
+                        'postponed',
+                        'delayed',
+                        'cancelled',
+                    ]
+                ),
+                name='game_status_known',
+            ),
         ]
         indexes = [
             models.Index(fields=['season', 'week'], name='game_season_week_idx'),
@@ -144,31 +157,61 @@ class GameLine(models.Model):
     )
     home_spread_price = models.DecimalField(
         max_digits=6,
-        decimal_places=0,
+        decimal_places=3,
         null=True,
         blank=True,
     )
     away_spread_price = models.DecimalField(
         max_digits=6,
-        decimal_places=0,
+        decimal_places=3,
         null=True,
         blank=True,
     )
     home_moneyline = models.DecimalField(
         max_digits=6,
-        decimal_places=0,
+        decimal_places=3,
         null=True,
         blank=True,
     )
     away_moneyline = models.DecimalField(
         max_digits=6,
-        decimal_places=0,
+        decimal_places=3,
         null=True,
         blank=True,
     )
     captured_at = models.DateTimeField()
 
     class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    Q(home_spread__isnull=True, away_spread__isnull=True)
+                    | Q(away_spread=-F('home_spread'))
+                ),
+                name='gameline_spread_opposites',
+            ),
+            models.CheckConstraint(
+                condition=(
+                    Q(home_moneyline__isnull=True, away_moneyline__isnull=True)
+                    | Q(home_moneyline__gt=1, away_moneyline__gt=1)
+                ),
+                name='gameline_moneyline_pair',
+            ),
+            models.CheckConstraint(
+                condition=(
+                    (Q(home_spread_price__isnull=True) | Q(home_spread_price__gt=1))
+                    & (Q(away_spread_price__isnull=True) | Q(away_spread_price__gt=1))
+                ),
+                name='gameline_spread_prices_gt_one',
+            ),
+            models.CheckConstraint(
+                condition=(
+                    Q(home_spread__isnull=False, away_spread__isnull=False)
+                    | Q(home_moneyline__isnull=False, away_moneyline__isnull=False)
+                ),
+                name='gameline_has_market',
+            ),
+        ]
         indexes = [
             models.Index(
                 fields=['game', '-captured_at'],
