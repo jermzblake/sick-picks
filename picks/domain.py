@@ -12,7 +12,12 @@ _POINTS = Decimal('0.01')
 _SPREAD_WIN = Decimal('1.00')
 _SPREAD_PUSH = Decimal('0.50')
 _SPREAD_LOSS = Decimal('0.00')
-_MONEYLINE_LOSS = Decimal('0.00')
+_NO_PROFIT = Decimal('0.00')
+_OPEN_FOR_PICKS = {
+    Game.Status.SCHEDULED,
+    Game.Status.POSTPONED,
+    Game.Status.DELAYED,
+}
 
 
 def submit_pick(
@@ -26,6 +31,8 @@ def submit_pick(
 ) -> Pick:
     if now is None:
         now = timezone.now()
+    if game.status not in _OPEN_FOR_PICKS:
+        raise ValidationError('Game is not open for picks.')
     if now >= game.kickoff_at:
         raise ValidationError('Pick cannot be submitted at or after kickoff.')
     if picked_team.pk not in (game.home_team_id, game.away_team_id):
@@ -80,11 +87,15 @@ def settle_pick(pick: Pick) -> Pick:
     away_score = game.away_score
     if home_score is None or away_score is None:
         raise ValidationError('Final game is missing a score.')
+    if pick.picked_team_id not in (game.home_team_id, game.away_team_id):
+        raise ValidationError('Picked team is not playing in this game.')
 
     if pick.pick_type == Pick.PickType.SPREAD:
         _settle_spread(pick, game, home_score, away_score)
-    else:
+    elif pick.pick_type == Pick.PickType.MONEYLINE:
         _settle_moneyline(pick, home_score, away_score)
+    else:
+        raise ValidationError('Unknown pick type.')
     pick.save(update_fields=['result', 'points'])
     return pick
 
@@ -126,7 +137,7 @@ def _settle_moneyline(pick: Pick, home_score: int, away_score: int) -> None:
         raise ValidationError('Moneyline pick is missing a price.')
     if home_score == away_score:
         pick.result = Pick.Result.PUSH
-        pick.points = _MONEYLINE_LOSS
+        pick.points = _NO_PROFIT
         return
     home_won = home_score > away_score
     picked_home = pick.picked_team_id == pick.game.home_team_id
@@ -138,4 +149,4 @@ def _settle_moneyline(pick: Pick, home_score: int, away_score: int) -> None:
         )
         return
     pick.result = Pick.Result.LOSS
-    pick.points = _MONEYLINE_LOSS
+    pick.points = _NO_PROFIT
