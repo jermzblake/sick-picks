@@ -510,11 +510,11 @@ These may become future requirements, but implementing them now would add comple
 
 Before creating Django models, convert the domain decisions above into:
 
-1. Model fields and relationships.
-2. Database-level constraints.
-3. Database indexes based on expected queries.
-4. Model/domain tests for important invariants.
-5. Scoring tests for ATS and moneyline calculations.
-6. Migration.
+1. ~~Model fields and relationships.~~
+2. ~~Database-level constraints.~~
+3. ~~Database indexes based on expected queries.~~
+4. ~~Model/domain tests for important invariants.~~
+5. ~~Scoring tests for ATS and moneyline calculations.~~
+6. ~~Migration.~~
 
 The goal is not to produce a perfect schema for every future feature. The goal is to create a **small, coherent domain model that accurately represents the MVP while leaving sensible paths for evolution.**
