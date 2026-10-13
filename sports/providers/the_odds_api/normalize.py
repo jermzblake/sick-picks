@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import ROUND_HALF_UP, Decimal
@@ -62,7 +63,11 @@ class NormalizedSlate:
     lines: tuple[NormalizedGameLine, ...]
 
 
-def normalize(payload: ProviderPayload) -> NormalizedSlate:
+def normalize(
+    payload: ProviderPayload,
+    *,
+    on_event_error: Callable[[str, MappingError], None] | None = None,
+) -> NormalizedSlate:
     participants = _participants_by_name(payload.participants)
     odds_by_id = _events_by_id(payload.odds, 'odds')
     scores_by_id = _events_by_id(payload.scores, 'scores')
@@ -73,21 +78,34 @@ def normalize(payload: ProviderPayload) -> NormalizedSlate:
     for event_id in event_ids:
         odds_event = odds_by_id.get(event_id)
         score_event = scores_by_id.get(event_id)
-        game = _game(
-            event_id,
-            odds_event,
-            score_event,
-            participants,
-            payload.window_start,
-            payload.window_end,
-        )
+        try:
+            game = _game(
+                event_id,
+                odds_event,
+                score_event,
+                participants,
+                payload.window_start,
+                payload.window_end,
+            )
+        except MappingError as exc:
+            if on_event_error is None:
+                raise
+            on_event_error(event_id, exc)
+            continue
         if game is None:
             continue
         games.append(game)
-        if odds_event is not None:
+        if odds_event is None:
+            continue
+        try:
             line = _line(odds_event)
-            if line is not None:
-                lines.append(line)
+        except MappingError as exc:
+            if on_event_error is None:
+                raise
+            on_event_error(event_id, exc)
+            continue
+        if line is not None:
+            lines.append(line)
 
     team_ids = {game.home_team_external_id for game in games}
     team_ids.update(game.away_team_external_id for game in games)
