@@ -1,18 +1,18 @@
 # Odds API mapping
 
-The NFL client in `sports/providers/the_odds_api/` is the only place that knows Odds API field names. Models and views consume the normalized structures below, or the Django fields those structures line up with. This spike does not write League, Season, Team, Game, or GameLine rows.
+The NFL client in `sports/providers/the_odds_api/` is the only place that knows Odds API field names. Models and `sync_nfl_data` consume the normalized structures below, or the Django fields those structures line up with. `seed_sports` creates the league, season, and teams. Sync links provider ids onto those teams and upserts games and lines. It does not create a league, season, or team.
 
 Requests use `https://api.the-odds-api.com` and `oddsFormat=decimal`, because `GameLine` moneylines are decimal prices greater than 1 and moneyline scoring is `(price - 1) * 100`.
 
 ## League, season, and teams
 
-| Domain | Where it comes from in this spike |
+| Domain | Where it comes from |
 | --- | --- |
-| League | Constant. The client only calls `americanfootball_nfl`, which corresponds to `League.abbreviation` `NFL`. |
-| Team | Participants `id` and `full_name`, joined to a game by exact `full_name`. |
-| Season | Not supplied. A later sync should attach `Game.season` from the app's NFL season. The kickoff year is not used, because an NFL season crosses the calendar year. |
+| League | Seeded by `seed_sports`. The client only calls `americanfootball_nfl`, which corresponds to `League.abbreviation` `NFL`. |
+| Team | Seeded by `seed_sports` with name and abbreviation. Sync matches `full_name`, then stores participants `id` on `Team.external_id`. |
+| Season | Seeded by `seed_sports --season-year`. The 2026 season opens Tuesday, September 8, 2026 Pacific. Later seasons open 52 weeks after the previous opening. A January kickoff stays in that season. Week numbers use a separate Tuesday calendar and are not the season boundary. |
 
-`NormalizedTeam` is `external_id` plus `name`. Abbreviation and logo are not filled.
+`NormalizedTeam` is `external_id` plus `name`. Abbreviation comes from the seed catalog, not the provider.
 
 ## Games and lines
 
