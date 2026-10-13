@@ -20,7 +20,12 @@ from sports.providers.the_odds_api.normalize import (
     MappingError,
     normalize,
 )
-from sports.providers.the_odds_api.weeks import PACIFIC, week_for, week_window
+from sports.providers.the_odds_api.weeks import (
+    PACIFIC,
+    season_year_for,
+    week_for,
+    week_window,
+)
 
 FIXTURE = (
     Path(__file__).parent / 'providers' / 'the_odds_api' / 'fixtures' / 'nfl_week.json'
@@ -161,6 +166,27 @@ def test_week_bounds_stay_on_tuesday_midnight_across_daylight_saving():
     assert kickoff.date().isoformat() == '2026-11-03'
     assert week_for(kickoff) == 10
     assert week_for(kickoff - timedelta(microseconds=1)) == 9
+
+
+def test_season_opens_tuesday_september_8_2026_and_rolls_every_52_weeks():
+    opening = datetime(2026, 9, 8, tzinfo=PACIFIC)
+    next_opening = datetime(2027, 9, 7, tzinfo=PACIFIC)
+
+    assert week_for(opening) == 2
+    assert season_year_for(opening) == 2026
+    assert season_year_for(opening - timedelta(microseconds=1)) == 2025
+    assert season_year_for(datetime(2026, 9, 1, tzinfo=PACIFIC)) == 2025
+    assert season_year_for(datetime(2026, 10, 18, 17, tzinfo=UTC)) == 2026
+    assert season_year_for(datetime(2027, 1, 10, 18, tzinfo=PACIFIC)) == 2026
+    assert season_year_for(datetime(2027, 2, 7, 15, tzinfo=PACIFIC)) == 2026
+    assert season_year_for(next_opening - timedelta(microseconds=1)) == 2026
+    assert season_year_for(next_opening) == 2027
+    assert season_year_for(datetime(2028, 1, 15, 18, tzinfo=PACIFIC)) == 2027
+
+
+def test_season_year_rejects_a_naive_kickoff():
+    with pytest.raises(ValueError, match='timezone-aware'):
+        season_year_for(datetime(2026, 10, 18, 17))
 
 
 def test_naive_moment_is_rejected():
@@ -528,6 +554,29 @@ def test_events_outside_the_window_are_dropped():
     assert slate.games == ()
     assert slate.teams == ()
     assert slate.lines == ()
+
+
+def test_event_errors_can_be_collected_without_dropping_other_games():
+    broken_line = _odds_event(
+        [_book('fanduel', [_moneyline(), _spread()])],
+        event_id='game-3',
+    )
+    broken_line['bookmakers'] = 'nope'
+    seen = []
+    slate = normalize(
+        _payload(
+            odds=[
+                _odds_event([_book('fanduel', [_moneyline(), _spread()])]),
+                broken_line,
+            ],
+            scores=[_score_event(True, None, event_id='game-2')],
+        ),
+        on_event_error=lambda event_id, exc: seen.append(event_id),
+    )
+
+    assert [game.external_id for game in slate.games] == [GAME_ID, 'game-3']
+    assert [line.game_external_id for line in slate.lines] == [GAME_ID]
+    assert seen == ['game-2', 'game-3']
 
 
 def test_duplicate_event_and_participant_names_fail_closed():
