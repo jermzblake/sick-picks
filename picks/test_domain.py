@@ -13,8 +13,9 @@ from tests.builders import (
     make_user,
 )
 
-from picks.domain import settle_pick, submit_pick
+from picks.domain import settle_pick
 from picks.models import Pick
+from picks.operations import submit_pick
 
 pytestmark = pytest.mark.django_db
 
@@ -69,7 +70,7 @@ def test_second_spread_for_the_same_user_and_game_is_rejected():
         pick_type=Pick.PickType.SPREAD,
         now=_BEFORE,
     )
-    with pytest.raises(IntegrityError), transaction.atomic():
+    with pytest.raises(ValidationError, match='already exists'):
         submit_pick(
             user=user,
             game=game,
@@ -296,6 +297,23 @@ def test_winning_moneyline_scores_profit_on_a_hundred_point_stake(price, points)
     settle_pick(pick)
     assert pick.result == Pick.Result.WIN
     assert pick.points == points
+
+
+def test_moneyline_settlement_ignores_a_stale_cached_home_team():
+    game, home, _away = _matchup()
+    line = make_line(
+        game,
+        home_moneyline=Decimal('1.500'),
+        away_moneyline=Decimal('2.750'),
+    )
+    pick = _submit(game, home, pick_type=Pick.PickType.MONEYLINE, line=line)
+    _finish_matchup(game, status='final', home_score=27, away_score=17)
+    pick.game.home_team_id = pick.game.away_team_id
+
+    settle_pick(pick)
+
+    assert pick.result == Pick.Result.WIN
+    assert pick.points == Decimal('50.00')
 
 
 def test_losing_moneyline_scores_zero():
