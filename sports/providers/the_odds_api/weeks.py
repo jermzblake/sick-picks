@@ -3,7 +3,7 @@ from zoneinfo import ZoneInfo
 
 PACIFIC = ZoneInfo('America/Los_Angeles')
 WEEK_LENGTH = timedelta(days=7)
-ANCHOR_WEEK = 7
+ANCHOR_WEEK = 6
 ANCHOR_START = datetime(2026, 10, 13, tzinfo=PACIFIC)
 SEASON_OPENING = datetime(2026, 9, 8, tzinfo=PACIFIC)
 SEASON_LENGTH = WEEK_LENGTH * 52
@@ -15,7 +15,7 @@ def season_year_for(kickoff_at: datetime) -> int:
     The 2026 season opens Tuesday, September 8, 2026 Pacific. Each later
     season opens 52 weeks after the previous opening. A January kickoff
     stays with the season that opened the previous September. This is
-    separate from week numbers: those are anchored so week 7 starts
+    separate from week numbers: those are anchored so week 6 starts
     October 13, 2026, which is not the season boundary.
     """
     if kickoff_at.tzinfo is None:
@@ -27,7 +27,7 @@ def season_year_for(kickoff_at: datetime) -> int:
 def week_for(kickoff_at: datetime) -> int:
     """Return the NFL week that contains this kickoff.
 
-    Weeks start Tuesday at midnight Pacific. Week 7 starts on
+    Weeks start Tuesday at midnight Pacific. Week 6 starts on
     2026-10-13. The interval is half-open: the next Tuesday belongs
     to the following week.
     """

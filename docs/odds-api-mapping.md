@@ -34,7 +34,7 @@ Outcomes are matched to home and away by team name. `totals` is ignored. Prices 
 
 ## Week
 
-NFL weeks are half-open intervals of seven days starting Tuesday at midnight `America/Los_Angeles`. Week 7 starts Tuesday, October 13, 2026. Week 8 starts Tuesday, October 20, 2026. A Monday night kickoff stays in the week that started the previous Tuesday.
+NFL weeks are half-open intervals of seven days starting Tuesday at midnight `America/Los_Angeles`. Week 6 starts Tuesday, October 13, 2026. Week 7 starts Tuesday, October 20, 2026. A Monday night kickoff stays in the week that started the previous Tuesday.
 
 The default odds request uses the week that contains the request time. Callers can pass `commence_time_from` and `commence_time_to` instead. Those bounds are sent as `commenceTimeFrom` and `commenceTimeTo`. Because the API treats `commenceTimeTo` as inclusive, the client sends one second before the exclusive end. Games are still filtered locally with a half-open window.
 

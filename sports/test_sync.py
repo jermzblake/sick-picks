@@ -84,7 +84,7 @@ def test_repeated_sync_creates_one_game_and_links_seeded_teams():
     assert Game.objects.count() == 1
     assert GameLine.objects.count() == 1
     assert game.updated_at == stamp
-    assert game.week == 7
+    assert game.week == 6
     assert game.season.year == 2026
     assert chiefs.external_id == HOME_ID
     assert chiefs.abbreviation == 'KC'

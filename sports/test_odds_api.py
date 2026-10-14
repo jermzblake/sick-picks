@@ -124,55 +124,55 @@ def _slate(odds=(), scores=()):
     return normalize(_payload(odds, scores))
 
 
-def test_week_seven_starts_tuesday_october_13_2026_pacific():
+def test_week_six_starts_tuesday_october_13_2026_pacific():
     kickoff = datetime(2026, 10, 13, tzinfo=PACIFIC)
 
-    assert week_for(kickoff) == 7
+    assert week_for(kickoff) == 6
     assert week_window(kickoff) == (
         datetime(2026, 10, 13, tzinfo=PACIFIC),
         datetime(2026, 10, 20, tzinfo=PACIFIC),
     )
 
 
-def test_instant_before_week_seven_is_week_six():
+def test_instant_before_week_six_is_week_five():
     kickoff = datetime(2026, 10, 13, tzinfo=PACIFIC) - timedelta(microseconds=1)
 
-    assert week_for(kickoff) == 6
+    assert week_for(kickoff) == 5
 
 
-def test_week_eight_starts_the_following_tuesday():
+def test_week_seven_starts_the_following_tuesday():
     kickoff = datetime(2026, 10, 20, tzinfo=PACIFIC)
 
-    assert week_for(kickoff) == 8
+    assert week_for(kickoff) == 7
 
 
-def test_monday_night_before_the_next_tuesday_stays_in_week_seven():
+def test_monday_night_before_the_next_tuesday_stays_in_week_six():
     kickoff = datetime(2026, 10, 19, 23, 59, tzinfo=PACIFIC)
 
-    assert week_for(kickoff) == 7
+    assert week_for(kickoff) == 6
 
 
 def test_utc_kickoff_uses_pacific_week_bounds():
     still_monday = datetime(2026, 10, 13, 6, 59, tzinfo=UTC)
     tuesday = datetime(2026, 10, 13, 7, 0, tzinfo=UTC)
 
-    assert week_for(still_monday) == 6
-    assert week_for(tuesday) == 7
+    assert week_for(still_monday) == 5
+    assert week_for(tuesday) == 6
 
 
 def test_week_bounds_stay_on_tuesday_midnight_across_daylight_saving():
     kickoff = datetime(2026, 11, 3, tzinfo=PACIFIC)
 
     assert kickoff.date().isoformat() == '2026-11-03'
-    assert week_for(kickoff) == 10
-    assert week_for(kickoff - timedelta(microseconds=1)) == 9
+    assert week_for(kickoff) == 9
+    assert week_for(kickoff - timedelta(microseconds=1)) == 8
 
 
 def test_season_opens_tuesday_september_8_2026_and_rolls_every_52_weeks():
     opening = datetime(2026, 9, 8, tzinfo=PACIFIC)
     next_opening = datetime(2027, 9, 7, tzinfo=PACIFIC)
 
-    assert week_for(opening) == 2
+    assert week_for(opening) == 1
     assert season_year_for(opening) == 2026
     assert season_year_for(opening - timedelta(microseconds=1)) == 2025
     assert season_year_for(datetime(2026, 9, 1, tzinfo=PACIFIC)) == 2025
@@ -330,7 +330,7 @@ def test_normalize_maps_a_complete_fanduel_line():
     assert game.home_team_external_id == HOME_ID
     assert game.away_team_external_id == AWAY_ID
     assert game.kickoff_at == datetime(2026, 10, 18, 17, tzinfo=UTC)
-    assert game.week == 7
+    assert game.week == 6
     assert game.status == SCHEDULED
     assert game.status == Game.Status.SCHEDULED
     assert game.home_score is None
