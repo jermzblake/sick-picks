@@ -7,7 +7,7 @@ from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.db import connection
 from django.test.utils import CaptureQueriesContext
-from picks.domain import submit_pick
+from picks.operations import submit_pick
 from tests.builders import make_league, make_season, make_team, make_user
 
 from sports.models import Game, GameLine, Team
@@ -270,7 +270,7 @@ def test_home_and_away_can_change_until_a_pick_exists():
     submit_pick(
         user=make_user(),
         game=game,
-        game_line=game.lines.order_by('captured_at').first(),
+        game_line=game.lines.order_by('-captured_at', '-id').first(),
         picked_team=game.home_team,
         pick_type='spread',
         now=game.kickoff_at - timedelta(hours=1),

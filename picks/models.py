@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.db import models
 from django.db.models import Q
+from django.utils import timezone
 from sports.models import Game, GameLine, Team
 
 
@@ -61,7 +62,7 @@ class Pick(models.Model):
         null=True,
         blank=True,
     )
-    submitted_at = models.DateTimeField(auto_now_add=True)
+    submitted_at = models.DateTimeField(default=timezone.now, editable=False)
 
     class Meta:
         constraints = [
