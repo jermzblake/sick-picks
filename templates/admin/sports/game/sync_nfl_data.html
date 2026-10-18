@@ -1,0 +1,14 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+  <h1>Sync NFL data</h1>
+  <p>
+    Leave both bounds empty to sync the current NFL week.
+    To sync a different window, set both times. The end is exclusive.
+  </p>
+  <form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit" name="apply">Sync</button>
+  </form>
+{% endblock %}

@@ -1,10 +1,56 @@
+import os
+from datetime import datetime
+
+from django import forms
 from django.contrib import admin, messages
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
+from django.shortcuts import redirect, render
+from django.urls import path
 from picks.operations import settle_game
 
 from sports.models import Game, GameLine, League, Season, Team
+from sports.providers.the_odds_api.client import OddsApiError
+from sports.providers.the_odds_api.normalize import MappingError
+from sports.sync import SyncError, SyncReport, run_nfl_sync
 
 _SETTLEABLE = {Game.Status.FINAL, Game.Status.CANCELLED}
+
+
+class NflSyncForm(forms.Form):
+    commence_from = forms.DateTimeField(
+        required=False,
+        label='From',
+        help_text='Inclusive. Leave both bounds empty to sync the current week.',
+    )
+    commence_to = forms.DateTimeField(
+        required=False,
+        label='To',
+        help_text='Exclusive. Set both bounds to sync a different window.',
+    )
+
+    def clean(self):
+        cleaned = super().clean()
+        commence_from = cleaned.get('commence_from')
+        commence_to = cleaned.get('commence_to')
+        if (commence_from is None) != (commence_to is None):
+            raise ValidationError('commence bounds must be provided together')
+        if (
+            commence_from is not None
+            and commence_to is not None
+            and commence_from >= commence_to
+        ):
+            raise ValidationError('commence_from must be earlier than commence_to')
+        return cleaned
+
+
+def _sync_summary(report: SyncReport) -> str:
+    return (
+        f'Games created: {report.games_created}. '
+        f'Games updated: {report.games_updated}. '
+        f'Games unchanged: {report.games_unchanged}. '
+        f'Games skipped: {report.games_skipped}. '
+        f'Lines created: {report.lines_created}.'
+    )
 
 
 def _settle_and_report(request, game: Game) -> None:
@@ -67,6 +113,53 @@ class GameAdmin(admin.ModelAdmin):
         'updated_at',
     )
     actions = [settle_selected]
+    change_list_template = 'admin/sports/game/change_list.html'
+
+    def get_urls(self):
+        return [
+            path(
+                'sync/',
+                self.admin_site.admin_view(self.sync_nfl_data),
+                name='sports_game_sync',
+            ),
+            *super().get_urls(),
+        ]
+
+    def changelist_view(self, request, extra_context=None):
+        extra_context = extra_context or {}
+        extra_context['show_nfl_sync'] = self.has_change_permission(request)
+        return super().changelist_view(request, extra_context=extra_context)
+
+    def sync_nfl_data(self, request):
+        if not self.has_change_permission(request):
+            raise PermissionDenied
+        form = NflSyncForm(request.POST if request.method == 'POST' else None)
+        if request.method == 'POST' and form.is_valid():
+            commence_from: datetime | None = form.cleaned_data['commence_from']
+            commence_to: datetime | None = form.cleaned_data['commence_to']
+            try:
+                report = run_nfl_sync(
+                    api_key=os.environ.get('ODDS_API_KEY', ''),
+                    commence_from=commence_from,
+                    commence_to=commence_to,
+                )
+            except (ValueError, OddsApiError, MappingError, SyncError) as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.success(request, _sync_summary(report))
+                for problem in report.problems:
+                    messages.warning(request, problem)
+                return redirect('admin:sports_game_changelist')
+        return render(
+            request,
+            'admin/sports/game/sync_nfl_data.html',
+            {
+                **self.admin_site.each_context(request),
+                'form': form,
+                'opts': self.model._meta,
+                'title': 'Sync NFL data',
+            },
+        )
 
     def get_deleted_objects(self, objs, request):
         deleted, counts, perms_needed, protected = super().get_deleted_objects(

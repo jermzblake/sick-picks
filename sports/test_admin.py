@@ -2,6 +2,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
+from django.contrib.auth.models import Permission
 from django.db import connection
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
@@ -17,6 +18,7 @@ from tests.builders import (
 )
 
 from sports.models import Game, GameLine
+from sports.sync import SyncError, SyncReport
 
 pytestmark = pytest.mark.django_db
 
@@ -228,3 +230,129 @@ def test_pick_and_line_changelists_do_not_query_teams_per_row(admin_client):
 
     assert _changelist_queries(admin_client, pick_url) == one_pick
     assert _changelist_queries(admin_client, line_url) == one_line
+
+
+def _staff_with_game_view():
+    user = make_user()
+    user.is_staff = True
+    user.save(update_fields=['is_staff'])
+    user.user_permissions.add(
+        Permission.objects.get(codename='view_game', content_type__app_label='sports')
+    )
+    return user
+
+
+def test_game_changelist_links_to_nfl_sync_for_editors(admin_client, client):
+    editor = admin_client.get(reverse('admin:sports_game_changelist'))
+    assert b'Sync NFL data' in editor.content
+
+    client.force_login(_staff_with_game_view())
+    viewer = client.get(reverse('admin:sports_game_changelist'))
+    assert viewer.status_code == 200
+    assert b'Sync NFL data' not in viewer.content
+
+
+def test_view_only_staff_cannot_open_nfl_sync(client):
+    client.force_login(_staff_with_game_view())
+
+    response = client.get(reverse('admin:sports_game_sync'))
+
+    assert response.status_code == 403
+
+
+def test_nfl_sync_page_runs_the_current_week_and_reports_problems(
+    admin_client, monkeypatch
+):
+    seen = {}
+
+    def fake_run(**kwargs):
+        seen.update(kwargs)
+        return SyncReport(1, 2, 3, 4, 5, ('bad-game: skipped',))
+
+    monkeypatch.setattr('sports.admin.run_nfl_sync', fake_run)
+    monkeypatch.setenv('ODDS_API_KEY', 'test-key')
+
+    page = admin_client.get(reverse('admin:sports_game_sync'))
+    assert page.status_code == 200
+    assert b'Sync NFL data' in page.content
+
+    response = admin_client.post(reverse('admin:sports_game_sync'), follow=True)
+
+    body = response.content.decode()
+    assert seen['api_key'] == 'test-key'
+    assert seen['commence_from'] is None
+    assert seen['commence_to'] is None
+    assert 'Games created: 1' in body
+    assert 'Lines created: 5' in body
+    assert 'Bad-game: skipped' in body
+
+
+def test_nfl_sync_passes_a_commence_window(admin_client, monkeypatch):
+    seen = {}
+
+    def fake_run(**kwargs):
+        seen.update(kwargs)
+        return SyncReport(0, 0, 0, 0, 0, ())
+
+    monkeypatch.setattr('sports.admin.run_nfl_sync', fake_run)
+
+    admin_client.post(
+        reverse('admin:sports_game_sync'),
+        {
+            'commence_from': '2026-10-13 07:00:00',
+            'commence_to': '2026-10-20 07:00:00',
+        },
+    )
+
+    assert seen['commence_from'] == datetime(2026, 10, 13, 7, tzinfo=UTC)
+    assert seen['commence_to'] == datetime(2026, 10, 20, 7, tzinfo=UTC)
+
+
+@pytest.mark.parametrize(
+    'data',
+    [
+        {'commence_from': '2026-10-13 07:00:00'},
+        {
+            'commence_from': '2026-10-20 07:00:00',
+            'commence_to': '2026-10-13 07:00:00',
+        },
+    ],
+)
+def test_nfl_sync_rejects_a_bad_window_without_calling_the_api(
+    admin_client, monkeypatch, data
+):
+    def fail(**kwargs):
+        raise AssertionError(kwargs)
+
+    monkeypatch.setattr('sports.admin.run_nfl_sync', fail)
+
+    response = admin_client.post(reverse('admin:sports_game_sync'), data)
+
+    assert response.status_code == 200
+    body = response.content
+    assert b'Sync NFL data' in body
+    if 'commence_to' in data:
+        assert b'commence_from must be earlier than commence_to' in body
+    else:
+        assert b'commence bounds must be provided together' in body
+
+
+def test_nfl_sync_reports_a_failure_and_stays_on_the_form(admin_client, monkeypatch):
+    def fail(**kwargs):
+        raise SyncError('NFL league is not seeded. Run seed_sports first.')
+
+    monkeypatch.setattr('sports.admin.run_nfl_sync', fail)
+
+    response = admin_client.post(reverse('admin:sports_game_sync'))
+
+    assert response.status_code == 200
+    assert b'not seeded' in response.content
+
+
+def test_nfl_sync_requires_an_api_key(admin_client, monkeypatch):
+    monkeypatch.delenv('ODDS_API_KEY', raising=False)
+
+    response = admin_client.post(reverse('admin:sports_game_sync'))
+
+    assert response.status_code == 200
+    assert b'ODDS_API_KEY' in response.content
