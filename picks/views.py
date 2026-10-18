@@ -180,7 +180,7 @@ def _card_for(
     item = _open_item(game, now)
     line = item.line if item is not None else None
     picks = list(user_picks(request.user, games=[game]))
-    initial = {}
+    initial: dict[str, int | str] = {}
     if picked_team_id is not None:
         initial['picked_team'] = picked_team_id
     if total_side is not None:
