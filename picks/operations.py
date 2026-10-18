@@ -1,9 +1,10 @@
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
 
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
-from django.db.models import OuterRef, Subquery
+from django.db.models import OuterRef, QuerySet, Subquery
 from django.utils import timezone
 from sports.models import Game, GameLine, Season
 
@@ -45,6 +46,19 @@ def upcoming_games(
     )
     lines = _latest_eligible_lines([game.id for game in slate], now)
     return [UpcomingGame(game, lines.get(game.id)) for game in slate]
+
+
+def user_picks(user, *, games: Sequence[Game] | None = None) -> QuerySet[Pick]:
+    picks = Pick.objects.filter(user=user).select_related(
+        'game',
+        'game__home_team',
+        'game__away_team',
+        'game_line',
+        'picked_team',
+    )
+    if games is not None:
+        picks = picks.filter(game__in=games)
+    return picks.order_by('-submitted_at', 'id')
 
 
 def submit_pick(
