@@ -14,16 +14,24 @@ from sports.providers.the_odds_api.normalize import MappingError
 from sports.sync import SyncError, SyncReport, run_nfl_sync
 
 _SETTLEABLE = {Game.Status.FINAL, Game.Status.CANCELLED}
+_DATETIME_EXAMPLE = '2026-10-13 07:00:00'
+
+
+def _window_bound(*, label: str, help_text: str) -> forms.DateTimeField:
+    return forms.DateTimeField(
+        required=False,
+        label=label,
+        help_text=help_text,
+        widget=forms.DateTimeInput(attrs={'placeholder': _DATETIME_EXAMPLE}),
+    )
 
 
 class NflSyncForm(forms.Form):
-    commence_from = forms.DateTimeField(
-        required=False,
+    commence_from = _window_bound(
         label='From',
         help_text='Inclusive. Leave both bounds empty to sync the current week.',
     )
-    commence_to = forms.DateTimeField(
-        required=False,
+    commence_to = _window_bound(
         label='To',
         help_text='Exclusive. Set both bounds to sync a different window.',
     )
@@ -44,13 +52,11 @@ class NflSyncForm(forms.Form):
 
 
 class SettleGamesForm(forms.Form):
-    kickoff_from = forms.DateTimeField(
-        required=False,
+    kickoff_from = _window_bound(
         label='From',
         help_text='Inclusive. Leave both bounds empty to settle the current week.',
     )
-    kickoff_to = forms.DateTimeField(
-        required=False,
+    kickoff_to = _window_bound(
         label='To',
         help_text='Exclusive. Set both bounds to settle a different window.',
     )
