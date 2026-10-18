@@ -7,6 +7,7 @@ from django.db import IntegrityError, transaction
 from django.db.models import OuterRef, QuerySet, Subquery
 from django.utils import timezone
 from sports.models import Game, GameLine, Season
+from sports.providers.the_odds_api.weeks import week_window
 
 from picks.domain import market_terms, settle_pick
 from picks.models import Pick
@@ -16,6 +17,7 @@ _OPEN_FOR_PICKS = {
     Game.Status.POSTPONED,
     Game.Status.DELAYED,
 }
+_SETTLEABLE = (Game.Status.FINAL, Game.Status.CANCELLED)
 _DUPLICATE_PICK = 'pick_user_game_type_uniq'
 
 
@@ -23,6 +25,12 @@ _DUPLICATE_PICK = 'pick_user_game_type_uniq'
 class UpcomingGame:
     game: Game
     line: GameLine | None
+
+
+@dataclass(frozen=True)
+class SettleReport:
+    settled: int
+    problems: tuple[str, ...]
 
 
 def upcoming_games(
@@ -114,6 +122,40 @@ def submit_pick(
         ) from exc
 
 
+def settle_window(
+    *,
+    kickoff_from: datetime | None = None,
+    kickoff_to: datetime | None = None,
+    now: datetime | None = None,
+) -> SettleReport:
+    """Grade final and cancelled games in a kickoff window.
+
+    Omit both bounds to use the NFL week that contains now. Pass both
+    for another half-open window. A game that cannot be graded is
+    reported and the rest of the window still settles.
+    """
+    start, end = _kickoff_window(kickoff_from, kickoff_to, now)
+    games = (
+        Game.objects.filter(
+            status__in=_SETTLEABLE,
+            kickoff_at__gte=start,
+            kickoff_at__lt=end,
+        )
+        .select_related('home_team', 'away_team')
+        .order_by('kickoff_at', 'id')
+    )
+    settled = 0
+    problems: list[str] = []
+    for game in games:
+        try:
+            settle_game(game)
+        except ValidationError as exc:
+            problems.append(f'{game}: {" ".join(exc.messages)}')
+        else:
+            settled += 1
+    return SettleReport(settled, tuple(problems))
+
+
 def settle_game(game: Game) -> list[Pick]:
     with transaction.atomic():
         locked_game = Game.objects.select_for_update().get(pk=game.pk)
@@ -127,6 +169,25 @@ def settle_game(game: Game) -> list[Pick]:
         for pick in picks:
             settle_pick(pick, game=locked_game)
         return picks
+
+
+def _kickoff_window(
+    kickoff_from: datetime | None,
+    kickoff_to: datetime | None,
+    now: datetime | None,
+) -> tuple[datetime, datetime]:
+    if (kickoff_from is None) != (kickoff_to is None):
+        raise ValueError('kickoff bounds must be provided together')
+    if kickoff_from is None or kickoff_to is None:
+        moment = now if now is not None else timezone.now()
+        if moment.tzinfo is None:
+            raise ValueError('now must be timezone-aware')
+        return week_window(moment)
+    if kickoff_from.tzinfo is None or kickoff_to.tzinfo is None:
+        raise ValueError('kickoff bounds must be timezone-aware')
+    if kickoff_from >= kickoff_to:
+        raise ValueError('kickoff_from must be earlier than kickoff_to')
+    return kickoff_from, kickoff_to
 
 
 def _require_open(game: Game, now: datetime) -> None:

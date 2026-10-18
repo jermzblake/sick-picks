@@ -5,6 +5,9 @@
     <li>
       <a href="{% url 'admin:sports_game_sync' %}">Sync NFL data</a>
     </li>
+    <li>
+      <a href="{% url 'admin:sports_game_settle' %}">Settle games</a>
+    </li>
   {% endif %}
   {{ block.super }}
 {% endblock %}

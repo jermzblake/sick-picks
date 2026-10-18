@@ -39,3 +39,23 @@ The command stops before writing if the API key is missing, the request fails, t
 The same sync is available in Django Admin. Open Games and choose **Sync NFL data**. Leave both bounds empty for the current week, or set both to sync another window.
 
 A missing season, an unmatched team, or one bad event is printed under `Problems` and that game is skipped. The rest of the slate is still saved. The summary reports games created, updated, unchanged, and skipped, plus lines created.
+
+## Settle
+
+Sync writes final scores. It does not grade picks. Settle the current NFL week after scores are in:
+
+```sh
+uv run python manage.py settle_games
+```
+
+This grades every final or cancelled game whose kickoff falls in the current week. A final game is scored. A cancelled game voids its picks. Scheduled and in-progress games are left alone. A final game that is missing a score is listed under `Problems`, and the rest of the week still settles. Running it again writes the same results.
+
+To settle a different window, pass both bounds. They must be timezone-aware, and `--to` is exclusive:
+
+```sh
+python manage.py settle_games \
+  --from 2026-09-08T07:00:00Z \
+  --to 2026-09-15T07:00:00Z
+```
+
+The same settlement is available in Django Admin. Open Games and choose **Settle games**. Leave both bounds empty for the current week, or set both to settle another window.
