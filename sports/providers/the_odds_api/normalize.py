@@ -53,6 +53,9 @@ class NormalizedGameLine:
     away_spread_price: Decimal | None
     home_moneyline: Decimal | None
     away_moneyline: Decimal | None
+    game_total: Decimal | None
+    over_price: Decimal | None
+    under_price: Decimal | None
     captured_at: datetime
 
 
@@ -214,6 +217,7 @@ def _line(odds_event: dict[str, Any]) -> NormalizedGameLine | None:
         captured_at = _timestamp(bookmaker.get('last_update'), 'last_update')
         home_spread, away_spread, home_spread_price, away_spread_price = parsed[0]
         home_moneyline, away_moneyline = parsed[1]
+        game_total, over_price, under_price = _present_total(parsed[2])
         return NormalizedGameLine(
             game_external_id=event_id,
             source=SOURCE,
@@ -224,6 +228,9 @@ def _line(odds_event: dict[str, Any]) -> NormalizedGameLine | None:
             away_spread_price=away_spread_price,
             home_moneyline=home_moneyline,
             away_moneyline=away_moneyline,
+            game_total=game_total,
+            over_price=over_price,
+            under_price=under_price,
             captured_at=captured_at,
         )
     return None
@@ -237,6 +244,7 @@ def _complete_line(
     tuple[
         tuple[Decimal, Decimal, Decimal, Decimal],
         tuple[Decimal, Decimal],
+        tuple[Decimal, Decimal, Decimal] | None,
     ]
     | None
 ):
@@ -248,13 +256,13 @@ def _complete_line(
         if not isinstance(market, dict):
             return None
         key = market.get('key')
-        if key in ('h2h', 'spreads'):
+        if key in ('h2h', 'spreads', 'totals'):
             by_key[key] = market
     moneyline = _moneyline(by_key.get('h2h'), home_name, away_name)
     spread = _spread(by_key.get('spreads'), home_name, away_name)
     if moneyline is None or spread is None:
         return None
-    return spread, moneyline
+    return spread, moneyline, _total(by_key.get('totals'))
 
 
 def _moneyline(
@@ -287,6 +295,50 @@ def _spread(
     if away_point != -home_point:
         return None
     return home_point, away_point, home_price, away_price
+
+
+def _present_total(
+    total: tuple[Decimal, Decimal, Decimal] | None,
+) -> tuple[Decimal | None, Decimal | None, Decimal | None]:
+    if total is None:
+        return None, None, None
+    return total
+
+
+def _total(
+    market: dict[str, Any] | None,
+) -> tuple[Decimal, Decimal, Decimal] | None:
+    if market is None:
+        return None
+    outcomes = market.get('outcomes')
+    if not isinstance(outcomes, list):
+        return None
+    found: dict[str, dict[str, Any]] = {}
+    for outcome in outcomes:
+        if not isinstance(outcome, dict):
+            return None
+        name = outcome.get('name')
+        if name not in ('Over', 'Under'):
+            continue
+        if name in found:
+            return None
+        found[name] = outcome
+    if set(found) != {'Over', 'Under'}:
+        return None
+    try:
+        over_price = _quantize(_decimal(found['Over'].get('price')), _MONEY)
+        under_price = _quantize(_decimal(found['Under'].get('price')), _MONEY)
+        over_point = _quantize(_decimal(found['Over'].get('point')), _SPREAD)
+        under_point = _quantize(_decimal(found['Under'].get('point')), _SPREAD)
+    except MappingError:
+        return None
+    except TypeError:
+        return None
+    if over_price <= _ONE or under_price <= _ONE:
+        return None
+    if over_point != under_point or over_point <= 0:
+        return None
+    return over_point, over_price, under_price
 
 
 def _prices(

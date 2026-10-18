@@ -36,6 +36,9 @@ _LINE_FIELDS = (
     'away_spread_price',
     'home_moneyline',
     'away_moneyline',
+    'game_total',
+    'over_price',
+    'under_price',
 )
 
 
@@ -341,6 +344,9 @@ def _insert_line_if_changed(game: Game, line: NormalizedGameLine | None) -> bool
         away_spread_price=line.away_spread_price,
         home_moneyline=line.home_moneyline,
         away_moneyline=line.away_moneyline,
+        game_total=line.game_total,
+        over_price=line.over_price,
+        under_price=line.under_price,
         captured_at=line.captured_at,
     )
     return True

@@ -13,7 +13,7 @@ from sports.providers.the_odds_api.weeks import week_window
 BASE_URL = 'https://api.the-odds-api.com'
 SPORT_KEY = 'americanfootball_nfl'
 BOOKMAKERS = ('fanduel', 'draftkings', 'betmgm')
-MARKETS = 'h2h,spreads'
+MARKETS = 'h2h,spreads,totals'
 ODDS_FORMAT = 'decimal'
 SCORES_DAYS_FROM = '3'
 

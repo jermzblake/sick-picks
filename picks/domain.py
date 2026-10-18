@@ -16,9 +16,15 @@ _NO_PROFIT = Decimal('0.00')
 def market_terms(
     game: Game,
     game_line: GameLine,
-    picked_team: Team,
+    picked_team: Team | None,
     pick_type: str,
 ) -> tuple[Decimal | None, Decimal | None]:
+    if pick_type == Pick.PickType.TOTAL:
+        if game_line.game_total is None:
+            raise ValidationError('Total is not available on this line.')
+        return game_line.game_total, None
+    if picked_team is None:
+        raise ValidationError('Picked team is not playing in this game.')
     if pick_type == Pick.PickType.SPREAD:
         line_value = _side_value(
             game,
@@ -56,6 +62,10 @@ def settle_pick(pick: Pick, *, game: Game | None = None) -> Pick:
     away_score = game.away_score
     if home_score is None or away_score is None:
         raise ValidationError('Final game is missing a score.')
+    if pick.pick_type == Pick.PickType.TOTAL:
+        _settle_total(pick, home_score, away_score)
+        pick.save(update_fields=['result', 'points'])
+        return pick
     if pick.picked_team_id not in (game.home_team_id, game.away_team_id):
         raise ValidationError('Picked team is not playing in this game.')
 
@@ -90,6 +100,23 @@ def _settle_spread(
         picked_score = away_score
         opponent_score = home_score
     margin = Decimal(picked_score) + pick.line_value - Decimal(opponent_score)
+    _grade_margin(pick, margin)
+
+
+def _settle_total(pick: Pick, home_score: int, away_score: int) -> None:
+    if pick.line_value is None:
+        raise ValidationError('Total pick is missing a line.')
+    combined = Decimal(home_score) + Decimal(away_score)
+    if pick.total_side == Pick.TotalSide.OVER:
+        margin = combined - pick.line_value
+    elif pick.total_side == Pick.TotalSide.UNDER:
+        margin = pick.line_value - combined
+    else:
+        raise ValidationError('Total pick is missing a side.')
+    _grade_margin(pick, margin)
+
+
+def _grade_margin(pick: Pick, margin: Decimal) -> None:
     if margin > 0:
         pick.result = Pick.Result.WIN
         pick.points = _SPREAD_WIN

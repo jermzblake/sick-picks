@@ -199,3 +199,73 @@ def test_game_line_accepts_moneyline_only_snapshot():
     )
     assert line.home_moneyline == Decimal('1.500')
     assert line.home_spread is None
+
+
+def test_game_line_accepts_a_complete_total_on_a_spread():
+    season, home, away = _slate()
+    game = make_game(season, home, away)
+    line = make_line(
+        game,
+        game_total=Decimal('44.5'),
+        over_price=Decimal('1.909'),
+        under_price=Decimal('1.870'),
+    )
+    assert line.game_total == Decimal('44.5')
+    assert line.over_price == Decimal('1.909')
+    assert line.under_price == Decimal('1.870')
+
+
+def test_spread_only_line_stores_a_null_total():
+    season, home, away = _slate()
+    game = make_game(season, home, away)
+    line = make_line(game)
+    assert line.game_total is None
+    assert line.over_price is None
+    assert line.under_price is None
+
+
+@pytest.mark.parametrize(
+    'total',
+    [
+        {'game_total': Decimal('44.5')},
+        {'over_price': Decimal('1.909'), 'under_price': Decimal('1.909')},
+        {
+            'game_total': Decimal('44.5'),
+            'over_price': Decimal('1.909'),
+        },
+        {
+            'game_total': Decimal('0'),
+            'over_price': Decimal('1.909'),
+            'under_price': Decimal('1.909'),
+        },
+        {
+            'game_total': Decimal('-1.0'),
+            'over_price': Decimal('1.909'),
+            'under_price': Decimal('1.909'),
+        },
+        {
+            'game_total': Decimal('44.5'),
+            'over_price': Decimal('1.000'),
+            'under_price': Decimal('1.909'),
+        },
+        {
+            'game_total': Decimal('44.5'),
+            'over_price': Decimal('1.909'),
+            'under_price': Decimal('1.000'),
+        },
+        {
+            'game_total': Decimal('44.5'),
+            'over_price': Decimal('1.909'),
+            'under_price': Decimal('1.909'),
+            'home_spread': None,
+            'away_spread': None,
+            'home_spread_price': None,
+            'away_spread_price': None,
+        },
+    ],
+)
+def test_game_line_rejects_an_incomplete_or_non_positive_total(total):
+    season, home, away = _slate()
+    game = make_game(season, home, away)
+    with pytest.raises(IntegrityError), transaction.atomic():
+        make_line(game, **total)

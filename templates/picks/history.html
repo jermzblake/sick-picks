@@ -24,7 +24,7 @@
           <tr>
             <td>{{ pick.game.away_team.abbreviation }} at {{ pick.game.home_team.abbreviation }}</td>
             <td>{{ pick.get_pick_type_display }}</td>
-            <td>{{ pick.picked_team.abbreviation }}</td>
+            <td>{% if pick.total_side %}{{ pick.get_total_side_display }}{% else %}{{ pick.picked_team.abbreviation }}{% endif %}</td>
             <td>
               {% if pick.line_value is not None %}{{ pick.line_value }}{% endif %}
               {% if pick.price is not None %}{{ pick.price }}{% endif %}

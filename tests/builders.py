@@ -67,6 +67,9 @@ def make_line(
     away_spread_price=Decimal('1.909'),
     home_moneyline=None,
     away_moneyline=None,
+    game_total=None,
+    over_price=None,
+    under_price=None,
     source='provider',
     bookmaker='book',
 ):
@@ -80,6 +83,9 @@ def make_line(
         away_spread_price=away_spread_price,
         home_moneyline=home_moneyline,
         away_moneyline=away_moneyline,
+        game_total=game_total,
+        over_price=over_price,
+        under_price=under_price,
         captured_at=captured_at or datetime(2026, 9, 12, 12, 0, tzinfo=UTC),
     )
 

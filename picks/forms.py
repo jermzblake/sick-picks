@@ -3,6 +3,11 @@ from sports.models import Game, GameLine, Team
 
 from picks.models import Pick
 
+CLIENT_MARKETS = (
+    (Pick.PickType.SPREAD, Pick.PickType.SPREAD.label),
+    (Pick.PickType.MONEYLINE, Pick.PickType.MONEYLINE.label),
+)
+
 
 class PickForm(forms.Form):
     picked_team = forms.ModelChoiceField(
@@ -11,7 +16,7 @@ class PickForm(forms.Form):
         empty_label=None,
     )
     pick_type = forms.ChoiceField(
-        choices=Pick.PickType.choices,
+        choices=CLIENT_MARKETS,
         widget=forms.HiddenInput,
     )
     game_line = forms.IntegerField(widget=forms.HiddenInput)
