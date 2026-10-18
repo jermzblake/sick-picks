@@ -6,7 +6,7 @@ from django.contrib import admin, messages
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.shortcuts import redirect, render
 from django.urls import path
-from picks.operations import settle_game
+from picks.operations import SettleReport, settle_game, settle_window
 
 from sports.models import Game, GameLine, League, Season, Team
 from sports.providers.the_odds_api.client import OddsApiError
@@ -43,6 +43,33 @@ class NflSyncForm(forms.Form):
         return cleaned
 
 
+class SettleGamesForm(forms.Form):
+    kickoff_from = forms.DateTimeField(
+        required=False,
+        label='From',
+        help_text='Inclusive. Leave both bounds empty to settle the current week.',
+    )
+    kickoff_to = forms.DateTimeField(
+        required=False,
+        label='To',
+        help_text='Exclusive. Set both bounds to settle a different window.',
+    )
+
+    def clean(self):
+        cleaned = super().clean()
+        kickoff_from = cleaned.get('kickoff_from')
+        kickoff_to = cleaned.get('kickoff_to')
+        if (kickoff_from is None) != (kickoff_to is None):
+            raise ValidationError('kickoff bounds must be provided together')
+        if (
+            kickoff_from is not None
+            and kickoff_to is not None
+            and kickoff_from >= kickoff_to
+        ):
+            raise ValidationError('kickoff_from must be earlier than kickoff_to')
+        return cleaned
+
+
 def _sync_summary(report: SyncReport) -> str:
     return (
         f'Games created: {report.games_created}. '
@@ -51,6 +78,10 @@ def _sync_summary(report: SyncReport) -> str:
         f'Games skipped: {report.games_skipped}. '
         f'Lines created: {report.lines_created}.'
     )
+
+
+def _settle_summary(report: SettleReport) -> str:
+    return f'Settled: {report.settled}.'
 
 
 def _settle_and_report(request, game: Game) -> None:
@@ -122,6 +153,11 @@ class GameAdmin(admin.ModelAdmin):
                 self.admin_site.admin_view(self.sync_nfl_data),
                 name='sports_game_sync',
             ),
+            path(
+                'settle/',
+                self.admin_site.admin_view(self.settle_games),
+                name='sports_game_settle',
+            ),
             *super().get_urls(),
         ]
 
@@ -158,6 +194,36 @@ class GameAdmin(admin.ModelAdmin):
                 'form': form,
                 'opts': self.model._meta,
                 'title': 'Sync NFL data',
+            },
+        )
+
+    def settle_games(self, request):
+        if not self.has_change_permission(request):
+            raise PermissionDenied
+        form = SettleGamesForm(request.POST if request.method == 'POST' else None)
+        if request.method == 'POST' and form.is_valid():
+            kickoff_from: datetime | None = form.cleaned_data['kickoff_from']
+            kickoff_to: datetime | None = form.cleaned_data['kickoff_to']
+            try:
+                report = settle_window(
+                    kickoff_from=kickoff_from,
+                    kickoff_to=kickoff_to,
+                )
+            except ValueError as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.success(request, _settle_summary(report))
+                for problem in report.problems:
+                    messages.error(request, problem)
+                return redirect('admin:sports_game_changelist')
+        return render(
+            request,
+            'admin/sports/game/settle_games.html',
+            {
+                **self.admin_site.each_context(request),
+                'form': form,
+                'opts': self.model._meta,
+                'title': 'Settle games',
             },
         )
 

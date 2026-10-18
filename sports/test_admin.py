@@ -245,11 +245,13 @@ def _staff_with_game_view():
 def test_game_changelist_links_to_nfl_sync_for_editors(admin_client, client):
     editor = admin_client.get(reverse('admin:sports_game_changelist'))
     assert b'Sync NFL data' in editor.content
+    assert b'Settle games' in editor.content
 
     client.force_login(_staff_with_game_view())
     viewer = client.get(reverse('admin:sports_game_changelist'))
     assert viewer.status_code == 200
     assert b'Sync NFL data' not in viewer.content
+    assert b'Settle games' not in viewer.content
 
 
 def test_view_only_staff_cannot_open_nfl_sync(client):
@@ -347,6 +349,96 @@ def test_nfl_sync_reports_a_failure_and_stays_on_the_form(admin_client, monkeypa
 
     assert response.status_code == 200
     assert b'not seeded' in response.content
+
+
+def test_view_only_staff_cannot_open_settle_games(client):
+    client.force_login(_staff_with_game_view())
+
+    response = client.get(reverse('admin:sports_game_settle'))
+
+    assert response.status_code == 403
+
+
+def test_settle_page_grades_the_current_week(admin_client, monkeypatch):
+    monkeypatch.setattr('picks.operations.timezone.now', lambda: _NOW)
+    game, home, _away = _matchup()
+    pick = _spread_pick(game, home)
+    game.status = 'final'
+    game.home_score = 30
+    game.away_score = 10
+    game.save(update_fields=['status', 'home_score', 'away_score'])
+
+    page = admin_client.get(reverse('admin:sports_game_settle'))
+    assert page.status_code == 200
+    assert b'Settle games' in page.content
+
+    response = admin_client.post(reverse('admin:sports_game_settle'), follow=True)
+
+    assert 'Settled: 1' in response.content.decode()
+    pick.refresh_from_db()
+    assert pick.result == Pick.Result.WIN
+
+
+def test_settle_page_uses_an_explicit_window_and_reports_a_missing_score(admin_client):
+    inside, inside_home, _inside_away = _matchup()
+    outside, outside_home, _outside_away = _matchup()
+    inside_pick = _spread_pick(inside, inside_home)
+    outside_pick = _spread_pick(outside, outside_home)
+    inside.status = 'final'
+    inside.save(update_fields=['status'])
+    outside.kickoff_at = datetime(2026, 10, 20, 7, tzinfo=UTC)
+    outside.status = 'final'
+    outside.home_score = 30
+    outside.away_score = 10
+    outside.save(update_fields=['kickoff_at', 'status', 'home_score', 'away_score'])
+
+    response = admin_client.post(
+        reverse('admin:sports_game_settle'),
+        {
+            'kickoff_from': '2026-09-08 07:00:00',
+            'kickoff_to': '2026-09-15 07:00:00',
+        },
+        follow=True,
+    )
+
+    body = response.content.decode()
+    assert 'Settled: 0' in body
+    assert 'missing a score' in body
+    inside_pick.refresh_from_db()
+    outside_pick.refresh_from_db()
+    assert inside_pick.result is None
+    assert outside_pick.result is None
+
+
+@pytest.mark.parametrize(
+    'data',
+    [
+        {'kickoff_from': '2026-10-13 07:00:00'},
+        {
+            'kickoff_from': '2026-10-20 07:00:00',
+            'kickoff_to': '2026-10-13 07:00:00',
+        },
+    ],
+)
+def test_settle_page_rejects_a_bad_window(admin_client, data):
+    game, home, _away = _matchup()
+    pick = _spread_pick(game, home)
+    game.status = 'final'
+    game.home_score = 30
+    game.away_score = 10
+    game.save(update_fields=['status', 'home_score', 'away_score'])
+
+    response = admin_client.post(reverse('admin:sports_game_settle'), data)
+
+    assert response.status_code == 200
+    body = response.content
+    assert b'Settle games' in body
+    if 'kickoff_to' in data:
+        assert b'kickoff_from must be earlier than kickoff_to' in body
+    else:
+        assert b'kickoff bounds must be provided together' in body
+    pick.refresh_from_db()
+    assert pick.result is None
 
 
 def test_nfl_sync_requires_an_api_key(admin_client, monkeypatch):
