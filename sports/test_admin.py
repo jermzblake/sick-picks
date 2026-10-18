@@ -277,6 +277,7 @@ def test_nfl_sync_page_runs_the_current_week_and_reports_problems(
     page = admin_client.get(reverse('admin:sports_game_sync'))
     assert page.status_code == 200
     assert b'Sync NFL data' in page.content
+    assert page.content.count(b'placeholder="2026-10-13 07:00:00"') == 2
 
     response = admin_client.post(reverse('admin:sports_game_sync'), follow=True)
 
@@ -371,6 +372,7 @@ def test_settle_page_grades_the_current_week(admin_client, monkeypatch):
     page = admin_client.get(reverse('admin:sports_game_settle'))
     assert page.status_code == 200
     assert b'Settle games' in page.content
+    assert page.content.count(b'placeholder="2026-10-13 07:00:00"') == 2
 
     response = admin_client.post(reverse('admin:sports_game_settle'), follow=True)
 
