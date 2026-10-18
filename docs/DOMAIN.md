@@ -11,13 +11,13 @@ The MVP supports NFL games. The core `Team` and `Game` concepts should remain sp
 - NFL
 - Moneyline (outright) picks
 - Against-the-spread (ATS) picks
+- Game-total (over/under) picks
 - Immutable historical game-line snapshots
 - Pick grading after a game is final
 - Historical pick and scoring records
 - No pools or entrants yet
-- No over/under market yet
 
-Future possibilities such as NBA, MLB, NHL, over/under, and pools should influence the design only where doing so is inexpensive and does not add unnecessary MVP complexity.
+Future possibilities such as NBA, MLB, NHL, and pools should influence the design only where doing so is inexpensive and does not add unnecessary MVP complexity.
 
 ---
 
@@ -61,7 +61,7 @@ A Game may have multiple GameLines as the market changes.
 
 A user's submitted prediction for a Game using a particular betting market and the GameLine available at submission.
 
-The MVP supports moneyline and against-the-spread picks.
+The MVP supports moneyline, against-the-spread, and game-total picks.
 
 ### Result
 
@@ -71,9 +71,10 @@ The official, verified final result of a Game used to evaluate Picks.
 
 The logic used to calculate the points earned by a Pick.
 
-The MVP has two scoring approaches:
+The MVP has three scoring approaches:
 
 - Against the spread: win = 1 point, push = 0.5 points, loss = 0 points.
+- Game total: the same win, push, and loss points as against the spread.
 - Moneyline: odds are applied against a constant 100-point stake.
 
 Examples:
@@ -163,6 +164,8 @@ Attributes:
 - `away_spread`
 - `home_outright_odds`
 - `away_outright_odds`
+- `game_total` — optional combined-score number
+- `over_price` and `under_price` — decimal prices for that total
 - `captured_at`
 
 GameLines are immutable.
@@ -187,9 +190,10 @@ Attributes:
 - `user`
 - `game`
 - `game_line`
-- `picked_team`
-- `market_type` — moneyline or spread
-- `spread_at_submission` — required for ATS picks
+- `picked_team` — required for moneyline and spread; empty for a total
+- `market_type` — moneyline, spread, or total
+- `total_side` — over or under, required for a total and empty otherwise
+- `spread_at_submission` — the spread for ATS picks, or the game total for total picks
 - `odds_at_submission` — required for moneyline picks
 - `result`
 - `points`
@@ -273,6 +277,9 @@ A Pick belongs to one User and one Game and references the GameLine used when th
 2. A GameLine is immutable after creation.
 3. A Game may have multiple GameLines.
 4. The latest available GameLine is the one used when a Pick is submitted.
+5. A GameLine must include a spread, a moneyline, or both. A total by itself is not a valid line.
+6. `game_total`, `over_price`, and `under_price` are all absent or all present.
+7. A present total is greater than 0. Both prices are greater than 1. The two sides share one number.
 
 The "latest available line" rule is application/domain behavior rather than simply a database constraint.
 
@@ -281,14 +288,17 @@ The "latest available line" rule is application/domain behavior rather than simp
 1. A Pick belongs to exactly one User.
 2. A Pick belongs to exactly one Game.
 3. A Pick references the GameLine used at submission.
-4. `picked_team` must be either the Game's home or away team.
-5. A Pick's market type determines which betting terms are required.
-6. For ATS picks, the submitted spread must correspond to the selected GameLine.
-7. For moneyline picks, the submitted odds must correspond to the selected GameLine.
-8. A Pick can only be submitted before the applicable Game start time.
-9. Once submitted, the Pick is immutable for the MVP.
-10. A cancelled Game causes its Pick to become void rather than deleting the Pick.
-11. A postponed Game does not invalidate an existing Pick.
+4. For moneyline and spread picks, `picked_team` must be either the Game's home or away team.
+5. A total pick has no team. It selects exactly one of over or under.
+6. A user may submit one spread, one moneyline, and one total for the same Game. A second total, whether the other side or the same side, is rejected.
+7. A Pick's market type determines which betting terms are required.
+8. For ATS picks, the submitted spread must correspond to the selected GameLine.
+9. For moneyline picks, the submitted odds must correspond to the selected GameLine.
+10. For total picks, the submitted total must be the selected GameLine's `game_total`. The pick stores the side and the number. The over and under prices stay on that GameLine.
+11. A Pick can only be submitted before the applicable Game start time.
+12. Once submitted, the Pick is immutable for the MVP.
+13. A cancelled Game causes its Pick to become void rather than deleting the Pick.
+14. A postponed Game does not invalidate an existing Pick.
 
 ### Historical Integrity
 
@@ -314,6 +324,18 @@ Scoring:
 | Push        |    0.5 |
 | Loss        |    0.0 |
 
+### Game Total
+
+The user selects over or under and the `game_total` on the GameLine at submission.
+
+The combined final score is the home score plus the away score.
+
+- Over wins when the combined score is greater than the total.
+- Under wins when the combined score is less than the total.
+- An equal combined score is a push.
+
+Scoring uses the same points as against the spread: 1, 0.5, and 0. A whole-number total can push. A half-point total cannot. The over and under prices are the juice and do not change the points, for the same reason a spread price does not.
+
 ### Moneyline
 
 The user selects a team and the moneyline odds associated with that team at submission.
@@ -336,9 +358,7 @@ The exact implementation should be covered by scoring tests rather than relying 
 
 ### Future Markets
 
-Over/under is a potential future market but is not part of the MVP.
-
-The current design should avoid making `Pick` intrinsically synonymous with "picked team against a spread" so that additional market types can be introduced later without redesigning the entire domain.
+The current design should avoid making `Pick` intrinsically synonymous with one market so that additional market types can be introduced later without redesigning the entire domain.
 
 ---
 
@@ -452,11 +472,7 @@ A separate `Sport` entity is not currently necessary. League is sufficient for t
 
 ### Future: Additional Betting Markets
 
-Potential future market:
-
-- Over/Under
-
-The Pick should therefore represent a prediction against a market rather than permanently assuming every Pick is a team/spread selection.
+Game total is a current market. Further markets should keep `Pick` as a prediction against a market rather than assuming every pick selects a team.
 
 ### Future: Pools
 
@@ -479,8 +495,7 @@ The following are intentionally not modeled yet:
 - Pools
 - Entrants
 - Pick Sheets
-- Over/Under
-- Multiple picks per user/game
+- Multiple picks of the same market per user/game
 - Pick revision history
 - Sport as a separate entity
 - Complex multi-market betting

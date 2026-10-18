@@ -260,6 +260,9 @@ class GameLineAdmin(admin.ModelAdmin):
         'away_spread',
         'home_moneyline',
         'away_moneyline',
+        'game_total',
+        'over_price',
+        'under_price',
     )
     list_filter = ('bookmaker', 'source')
     list_select_related = ('game', 'game__home_team', 'game__away_team')
@@ -273,6 +276,9 @@ class GameLineAdmin(admin.ModelAdmin):
         'away_spread_price',
         'home_moneyline',
         'away_moneyline',
+        'game_total',
+        'over_price',
+        'under_price',
         'captured_at',
     )
 

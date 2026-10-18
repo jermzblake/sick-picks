@@ -324,6 +324,33 @@ def test_settle_game_grades_every_pick_on_a_final_game():
     assert moneyline.points == Decimal('50.00')
 
 
+def test_settle_game_grades_a_total():
+    game, _home, _away = _matchup()
+    line = make_line(
+        game,
+        captured_at=_EARLIER,
+        game_total=Decimal('41.5'),
+        over_price=Decimal('1.909'),
+        under_price=Decimal('1.909'),
+    )
+    total = submit_pick(
+        user=make_user(),
+        game=game,
+        game_line=line,
+        pick_type=Pick.PickType.TOTAL,
+        total_side=Pick.TotalSide.OVER,
+        now=_NOW,
+    )
+    _finish(game, status='final', home_score=24, away_score=20)
+
+    settle_game(game)
+
+    total.refresh_from_db()
+    assert total.result == Pick.Result.WIN
+    assert total.points == Decimal('1.00')
+    assert total.picked_team_id is None
+
+
 def test_settle_game_loads_the_game_once_for_every_pick():
     game, home, _away = _matchup()
     line = make_line(

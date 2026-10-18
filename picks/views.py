@@ -11,7 +11,7 @@ from sports.models import Game, GameLine, Season
 from sports.providers.the_odds_api.weeks import season_year_for, week_for
 from sports.seed import NFL_ABBREVIATION
 
-from picks.forms import PickForm
+from picks.forms import CLIENT_MARKETS, PickForm
 from picks.models import Pick
 from picks.operations import UpcomingGame, submit_pick, upcoming_games, user_picks
 
@@ -274,7 +274,7 @@ def _week_from_request(request: HttpRequest, now):
 
 
 def _posted_market(request: HttpRequest) -> str | None:
-    for market in Pick.PickType.values:
+    for market, _label in CLIENT_MARKETS:
         if f'{market}-pick_type' in request.POST:
             return market
     return None

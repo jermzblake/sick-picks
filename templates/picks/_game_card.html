@@ -27,7 +27,7 @@
   {% for pick in card.picks %}
     <p>
       Submitted {{ pick.get_pick_type_display }}:
-      {{ pick.picked_team.abbreviation }}
+      {% if pick.total_side %}{{ pick.get_total_side_display }}{% else %}{{ pick.picked_team.abbreviation }}{% endif %}
       {% if pick.line_value is not None %}{{ pick.line_value }}{% endif %}
       {% if pick.price is not None %}{{ pick.price }}{% endif %}
     </p>

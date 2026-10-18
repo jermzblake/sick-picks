@@ -35,6 +35,7 @@ from sports.test_odds_api import (
     _scores,
     _slate,
     _spread,
+    _total,
 )
 
 pytestmark = pytest.mark.django_db
@@ -52,6 +53,15 @@ def _line_event(spread='-3.5', away_spread='3.5', last_update=None, commence_tim
     if commence_time is None:
         return _odds_event([book])
     return _odds_event([book], commence_time=commence_time)
+
+
+def _line_event_with_total():
+    markets = [
+        _moneyline(),
+        _spread(),
+        _total(point='47.5', under_price='1.870'),
+    ]
+    return _odds_event([_book('fanduel', markets, last_update=LATER_UPDATE)])
 
 
 def _sync(odds=(), scores=()):
@@ -128,6 +138,22 @@ def test_a_changed_spread_inserts_a_snapshot_and_leaves_the_pick_line():
     assert pick.game_line_id == original.id
     assert pick.line_value == Decimal('-3.5')
     assert original.home_spread == Decimal('-3.5')
+
+
+def test_a_changed_total_inserts_a_snapshot():
+    seed_sports('NFL', 2026)
+    _sync(odds=[_line_event()])
+    game = Game.objects.get(external_id=GAME_ID)
+
+    report = _sync(odds=[_line_event_with_total()])
+
+    assert report.lines_created == 1
+    assert game.lines.count() == 2
+    latest = game.lines.order_by('-captured_at', '-id').first()
+    assert latest is not None
+    assert latest.game_total == Decimal('47.5')
+    assert latest.over_price == Decimal('1.909')
+    assert latest.under_price == Decimal('1.870')
 
 
 def test_missing_season_or_team_skips_the_game():

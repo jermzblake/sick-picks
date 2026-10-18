@@ -460,6 +460,52 @@ def test_history_shows_only_the_current_users_picks_and_status(client):
     assert '1.00' in scored_body
 
 
+def test_a_total_pick_renders_its_side_on_the_slate_and_in_history(client, monkeypatch):
+    _freeze(monkeypatch)
+    season = _season()
+    game, home, _away = _game(season, abbr='KC')
+    line = make_line(
+        game,
+        captured_at=_NOW - timedelta(hours=1),
+        game_total=Decimal('44.5'),
+        over_price=Decimal('1.909'),
+        under_price=Decimal('1.909'),
+    )
+    user = make_user()
+    submit_pick(
+        user=user,
+        game=game,
+        game_line=line,
+        pick_type=Pick.PickType.SPREAD,
+        picked_team=home,
+        now=_NOW - timedelta(minutes=2),
+    )
+    submit_pick(
+        user=user,
+        game=game,
+        game_line=line,
+        pick_type=Pick.PickType.TOTAL,
+        total_side=Pick.TotalSide.OVER,
+        now=_NOW - timedelta(minutes=1),
+    )
+    client.force_login(user)
+
+    slate_response = client.get(reverse('game-slate'))
+    history_response = client.get(reverse('pick-history'))
+    slate = slate_response.content.decode()
+    history = history_response.content.decode()
+
+    assert slate_response.status_code == 200
+    assert history_response.status_code == 200
+
+    assert 'KC' in slate
+    assert 'Over' in slate
+    assert '44.5' in slate
+    assert 'KC' in history
+    assert 'Over' in history
+    assert '44.5' in history
+
+
 def test_history_is_empty_until_the_user_submits(client):
     client.force_login(make_user())
 

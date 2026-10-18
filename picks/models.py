@@ -9,6 +9,11 @@ class Pick(models.Model):
     class PickType(models.TextChoices):
         SPREAD = 'spread', 'Spread'
         MONEYLINE = 'moneyline', 'Moneyline'
+        TOTAL = 'total', 'Total'
+
+    class TotalSide(models.TextChoices):
+        OVER = 'over', 'Over'
+        UNDER = 'under', 'Under'
 
     class Result(models.TextChoices):
         WIN = 'win', 'Win'
@@ -36,8 +41,16 @@ class Pick(models.Model):
         Team,
         on_delete=models.PROTECT,
         related_name='picked_picks',
+        null=True,
+        blank=True,
     )
     pick_type = models.CharField(max_length=16, choices=PickType)
+    total_side = models.CharField(  # noqa: DJ001 — NULL for team markets
+        max_length=8,
+        choices=TotalSide,
+        null=True,
+        blank=True,
+    )
     line_value = models.DecimalField(
         max_digits=4,
         decimal_places=1,
@@ -72,8 +85,26 @@ class Pick(models.Model):
             ),
             models.CheckConstraint(
                 condition=(
-                    Q(pick_type='spread', line_value__isnull=False)
-                    | Q(pick_type='moneyline', price__isnull=False)
+                    Q(
+                        pick_type='spread',
+                        line_value__isnull=False,
+                        picked_team__isnull=False,
+                        total_side__isnull=True,
+                    )
+                    | Q(
+                        pick_type='moneyline',
+                        price__isnull=False,
+                        picked_team__isnull=False,
+                        total_side__isnull=True,
+                    )
+                    | Q(
+                        pick_type='total',
+                        line_value__isnull=False,
+                        line_value__gt=0,
+                        price__isnull=True,
+                        picked_team__isnull=True,
+                        total_side__in=['over', 'under'],
+                    )
                 ),
                 name='pick_market_terms_present',
             ),
@@ -93,4 +124,8 @@ class Pick(models.Model):
         ]
 
     def __str__(self):
-        return f'{self.user} {self.pick_type} {self.picked_team}'
+        if self.pick_type == self.PickType.TOTAL:
+            selection = self.total_side
+        else:
+            selection = self.picked_team
+        return f'{self.user} {self.pick_type} {selection}'

@@ -74,8 +74,9 @@ def submit_pick(
     user,
     game: Game,
     game_line: GameLine,
-    picked_team,
     pick_type: str,
+    picked_team=None,
+    total_side: str | None = None,
     now: datetime | None = None,
 ) -> Pick:
     if now is None:
@@ -85,11 +86,7 @@ def submit_pick(
             locked_game = Game.objects.select_for_update().get(pk=game.pk)
             line = GameLine.objects.get(pk=game_line.pk)
             _require_open(locked_game, now)
-            if picked_team.pk not in (
-                locked_game.home_team_id,
-                locked_game.away_team_id,
-            ):
-                raise ValidationError('Picked team is not playing in this game.')
+            _require_selection(locked_game, pick_type, picked_team, total_side)
             if line.game_id != locked_game.id:
                 raise ValidationError('Line does not belong to this game.')
             current = _latest_eligible_line(locked_game, now)
@@ -110,6 +107,7 @@ def submit_pick(
                 game_line=line,
                 picked_team=picked_team,
                 pick_type=pick_type,
+                total_side=total_side,
                 line_value=line_value,
                 price=price,
                 submitted_at=now,
@@ -188,6 +186,22 @@ def _kickoff_window(
     if kickoff_from >= kickoff_to:
         raise ValueError('kickoff_from must be earlier than kickoff_to')
     return kickoff_from, kickoff_to
+
+
+def _require_selection(game: Game, pick_type: str, picked_team, total_side) -> None:
+    if pick_type == Pick.PickType.TOTAL:
+        if picked_team is not None:
+            raise ValidationError('A total pick does not select a team.')
+        if total_side not in (Pick.TotalSide.OVER, Pick.TotalSide.UNDER):
+            raise ValidationError('Choose over or under.')
+        return
+    if total_side is not None:
+        raise ValidationError('This market does not take an over or under.')
+    if picked_team is None or picked_team.pk not in (
+        game.home_team_id,
+        game.away_team_id,
+    ):
+        raise ValidationError('Picked team is not playing in this game.')
 
 
 def _require_open(game: Game, now: datetime) -> None:

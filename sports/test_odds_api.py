@@ -70,6 +70,16 @@ def _spread(
     }
 
 
+def _total(point='44.5', over_price='1.909', under_price='1.909'):
+    return {
+        'key': 'totals',
+        'outcomes': [
+            {'name': 'Over', 'price': over_price, 'point': point},
+            {'name': 'Under', 'price': under_price, 'point': point},
+        ],
+    }
+
+
 def _book(key, markets, last_update=UPDATED):
     book = {'key': key, 'title': key, 'markets': markets}
     if last_update is not None:
@@ -210,7 +220,7 @@ def test_client_requests_the_current_week_and_priority_books():
     assert odds_url.endswith('/v4/sports/americanfootball_nfl/odds/')
     assert odds_params['apiKey'] == 'test-key'
     assert odds_params['oddsFormat'] == 'decimal'
-    assert odds_params['markets'] == 'h2h,spreads'
+    assert odds_params['markets'] == 'h2h,spreads,totals'
     assert odds_params['bookmakers'] == 'fanduel,draftkings,betmgm'
     assert odds_params['commenceTimeFrom'] == '2026-10-13T07:00:00Z'
     assert odds_params['commenceTimeTo'] == '2026-10-20T06:59:59Z'
@@ -341,7 +351,116 @@ def test_normalize_maps_a_complete_fanduel_line():
     assert line.away_spread == Decimal('3.5')
     assert line.home_moneyline == Decimal('1.500')
     assert line.away_moneyline == Decimal('2.750')
+    assert line.game_total is None
+    assert line.over_price is None
+    assert line.under_price is None
     assert line.captured_at == datetime(2026, 10, 16, 15, tzinfo=UTC)
+
+
+def test_normalize_keeps_a_complete_total_on_the_chosen_book():
+    slate = _slate(
+        odds=[
+            _odds_event(
+                [
+                    _book(
+                        'fanduel',
+                        [_moneyline(), _spread(), _total(point='44.54')],
+                    )
+                ]
+            )
+        ]
+    )
+
+    line = slate.lines[0]
+    assert line.bookmaker == 'fanduel'
+    assert line.game_total == Decimal('44.5')
+    assert line.over_price == Decimal('1.909')
+    assert line.under_price == Decimal('1.909')
+
+
+def test_a_missing_total_does_not_change_the_chosen_book():
+    slate = _slate(
+        odds=[
+            _odds_event(
+                [
+                    _book('fanduel', [_moneyline(), _spread()]),
+                    _book(
+                        'draftkings',
+                        [_moneyline(), _spread(), _total()],
+                    ),
+                ]
+            )
+        ]
+    )
+
+    line = slate.lines[0]
+    assert line.bookmaker == 'fanduel'
+    assert line.game_total is None
+
+
+@pytest.mark.parametrize(
+    'total',
+    [
+        {
+            'key': 'totals',
+            'outcomes': [
+                {'name': 'Over', 'price': '1.909', 'point': '44.5'},
+                {'name': 'Under', 'price': '1.909', 'point': '45.5'},
+            ],
+        },
+        {
+            'key': 'totals',
+            'outcomes': [{'name': 'Over', 'price': '1.909', 'point': '44.5'}],
+        },
+        _total(over_price='1.000'),
+        _total(under_price='1.000'),
+        _total(point='0'),
+        _total(point='-3.5'),
+        {
+            'key': 'totals',
+            'outcomes': [
+                {'name': 'Over', 'price': '1.909', 'point': '44.5'},
+                {'name': 'Over', 'price': '1.870', 'point': '44.5'},
+                {'name': 'Under', 'price': '1.909', 'point': '44.5'},
+            ],
+        },
+        {'key': 'totals', 'outcomes': 'over'},
+    ],
+)
+def test_an_unusable_total_is_dropped_without_changing_books(total):
+    slate = _slate(
+        odds=[
+            _odds_event(
+                [
+                    _book('fanduel', [_moneyline(), _spread(), total]),
+                    _book('draftkings', [_moneyline(), _spread(), _total()]),
+                ]
+            )
+        ]
+    )
+
+    line = slate.lines[0]
+    assert line.bookmaker == 'fanduel'
+    assert line.home_spread == Decimal('-3.5')
+    assert line.game_total is None
+    assert line.over_price is None
+    assert line.under_price is None
+
+
+def test_a_totals_only_book_does_not_qualify():
+    slate = _slate(
+        odds=[
+            _odds_event(
+                [
+                    _book('fanduel', [_total()]),
+                    _book('draftkings', [_moneyline(), _spread()]),
+                ]
+            )
+        ]
+    )
+
+    assert slate.lines[0].bookmaker == 'draftkings'
+    assert slate.lines[0].game_total is None
 
 
 def test_bookmaker_priority_skips_an_incomplete_book():

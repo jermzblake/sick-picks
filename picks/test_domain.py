@@ -230,7 +230,7 @@ def test_a_later_line_does_not_change_a_submitted_pick():
 def test_unknown_pick_type_is_rejected():
     game, home, _away = _matchup()
     with pytest.raises(ValidationError, match='Unknown pick type'):
-        _submit(game, home, pick_type='total')
+        _submit(game, home, pick_type='parlay')
 
 
 def test_spread_submit_rejects_a_line_without_a_spread():
@@ -399,7 +399,7 @@ def test_settle_rejects_an_unknown_pick_type():
     game, home, _away = _matchup()
     pick = _submit(game, home, pick_type=Pick.PickType.SPREAD)
     _finish_matchup(game, status='final', home_score=24, away_score=17)
-    pick.pick_type = 'total'
+    pick.pick_type = 'parlay'
     with pytest.raises(ValidationError, match='Unknown pick type'):
         settle_pick(pick)
     pick.refresh_from_db()
@@ -415,6 +415,173 @@ def test_final_game_without_scores_is_not_settled():
     pick.refresh_from_db()
     assert pick.result is None
     assert pick.points is None
+
+
+def _total_line(game, **overrides):
+    values = {
+        'game_total': Decimal('44.5'),
+        'over_price': Decimal('1.909'),
+        'under_price': Decimal('1.870'),
+    }
+    values.update(overrides)
+    return make_line(game, **values)
+
+
+def _submit_total(game, *, side, line=None, team=None, user=None, now=_BEFORE):
+    return submit_pick(
+        user=user or make_user(),
+        game=game,
+        game_line=line or _total_line(game),
+        pick_type=Pick.PickType.TOTAL,
+        total_side=side,
+        picked_team=team,
+        now=now,
+    )
+
+
+def test_total_pick_stores_the_side_and_the_number():
+    game, _home, _away = _matchup()
+    line = _total_line(game)
+    over = _submit_total(game, side=Pick.TotalSide.OVER, line=line)
+    under = _submit_total(game, side=Pick.TotalSide.UNDER, line=line)
+    assert over.line_value == Decimal('44.5')
+    assert over.total_side == Pick.TotalSide.OVER
+    assert over.picked_team is None
+    assert over.price is None
+    assert under.total_side == Pick.TotalSide.UNDER
+    assert under.picked_team is None
+
+
+def test_a_second_total_for_the_same_user_and_game_is_rejected():
+    game, _home, _away = _matchup()
+    user = make_user()
+    line = _total_line(game)
+    _submit_total(game, side=Pick.TotalSide.OVER, line=line, user=user)
+    with pytest.raises(ValidationError, match='already exists'):
+        _submit_total(game, side=Pick.TotalSide.UNDER, line=line, user=user)
+
+
+def test_user_can_submit_a_spread_and_a_total_on_the_same_game():
+    game, home, _away = _matchup()
+    user = make_user()
+    line = _total_line(game)
+    spread = submit_pick(
+        user=user,
+        game=game,
+        game_line=line,
+        picked_team=home,
+        pick_type=Pick.PickType.SPREAD,
+        now=_BEFORE,
+    )
+    total = _submit_total(game, side=Pick.TotalSide.OVER, line=line, user=user)
+    assert spread.pick_type == Pick.PickType.SPREAD
+    assert total.pick_type == Pick.PickType.TOTAL
+
+
+def test_total_submit_rejects_a_line_without_a_total():
+    game, _home, _away = _matchup()
+    with pytest.raises(ValidationError, match='Total is not available'):
+        _submit_total(game, side=Pick.TotalSide.OVER, line=make_line(game))
+
+
+def test_total_submit_rejects_a_team_and_a_missing_side():
+    game, home, _away = _matchup()
+    line = _total_line(game)
+    with pytest.raises(ValidationError, match='does not select a team'):
+        _submit_total(game, side=Pick.TotalSide.OVER, line=line, team=home)
+    with pytest.raises(ValidationError, match='over or under'):
+        _submit_total(game, side=None, line=line)
+    with pytest.raises(ValidationError, match='over or under'):
+        _submit_total(game, side='push', line=line)
+
+
+def test_spread_submit_rejects_an_over_under_side():
+    game, home, _away = _matchup()
+    with pytest.raises(ValidationError, match='over or under'):
+        submit_pick(
+            user=make_user(),
+            game=game,
+            game_line=make_line(game),
+            picked_team=home,
+            pick_type=Pick.PickType.SPREAD,
+            total_side=Pick.TotalSide.OVER,
+            now=_BEFORE,
+        )
+
+
+@pytest.mark.parametrize(
+    ('side', 'home_score', 'away_score', 'result', 'points'),
+    [
+        (Pick.TotalSide.OVER, 24, 21, Pick.Result.WIN, Decimal('1.00')),
+        (Pick.TotalSide.UNDER, 20, 17, Pick.Result.WIN, Decimal('1.00')),
+        (Pick.TotalSide.OVER, 24, 20, Pick.Result.LOSS, Decimal('0.00')),
+        (Pick.TotalSide.UNDER, 30, 21, Pick.Result.LOSS, Decimal('0.00')),
+    ],
+)
+def test_final_total_scores_like_a_spread(side, home_score, away_score, result, points):
+    game, _home, _away = _matchup()
+    pick = _submit_total(game, side=side)
+    _finish_matchup(
+        game,
+        status='final',
+        home_score=home_score,
+        away_score=away_score,
+    )
+    settle_pick(pick)
+    assert pick.result == result
+    assert pick.points == points
+
+
+def test_whole_number_total_pushes_when_the_combined_score_matches():
+    game, _home, _away = _matchup()
+    line = _total_line(game, game_total=Decimal('44.0'))
+    pick = _submit_total(game, side=Pick.TotalSide.OVER, line=line)
+    _finish_matchup(game, status='final', home_score=24, away_score=20)
+    settle_pick(pick)
+    assert pick.result == Pick.Result.PUSH
+    assert pick.points == Decimal('0.50')
+
+
+def test_half_point_total_does_not_push():
+    game, _home, _away = _matchup()
+    line = _total_line(game)
+    over = _submit_total(game, side=Pick.TotalSide.OVER, line=line)
+    under = _submit_total(game, side=Pick.TotalSide.UNDER, line=line)
+    _finish_matchup(game, status='final', home_score=24, away_score=20)
+    settle_pick(over)
+    settle_pick(under)
+    assert over.result == Pick.Result.LOSS
+    assert under.result == Pick.Result.WIN
+
+
+def test_cancelled_total_is_void():
+    game, _home, _away = _matchup()
+    pick = _submit_total(game, side=Pick.TotalSide.OVER)
+    _finish_matchup(game, status='cancelled', home_score=30, away_score=27)
+    settle_pick(pick)
+    pick.refresh_from_db()
+    assert pick.result == Pick.Result.VOID
+    assert pick.points is None
+
+
+def test_settle_rejects_a_total_without_a_side():
+    game, _home, _away = _matchup()
+    pick = _submit_total(game, side=Pick.TotalSide.OVER)
+    _finish_matchup(game, status='final', home_score=24, away_score=21)
+    pick.total_side = None
+    with pytest.raises(ValidationError, match='missing a side'):
+        settle_pick(pick)
+    pick.refresh_from_db()
+    assert pick.result is None
+
+
+def test_stored_total_pick_rejects_a_team():
+    game, home, _away = _matchup()
+    line = _total_line(game)
+    pick = _submit_total(game, side=Pick.TotalSide.OVER, line=line)
+    pick.picked_team = home
+    with pytest.raises(IntegrityError), transaction.atomic():
+        pick.save(update_fields=['picked_team'])
 
 
 def test_pick_rejects_an_unknown_result():

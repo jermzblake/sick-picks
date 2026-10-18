@@ -28,9 +28,13 @@ Requests use `https://api.the-odds-api.com` and `oddsFormat=decimal`, because `G
 | spreads `point` | `home_spread`, `away_spread` | `GameLine.home_spread`, `GameLine.away_spread` |
 | spreads `price` | `home_spread_price`, `away_spread_price` | `GameLine.home_spread_price`, `GameLine.away_spread_price` |
 | h2h `price` | `home_moneyline`, `away_moneyline` | `GameLine.home_moneyline`, `GameLine.away_moneyline` |
+| totals `point` | `game_total` | `GameLine.game_total` |
+| totals `price` | `over_price`, `under_price` | `GameLine.over_price`, `GameLine.under_price` |
 | bookmaker `last_update` | `captured_at` | `GameLine.captured_at` |
 
-Outcomes are matched to home and away by team name. `totals` is ignored. Prices quantize to three decimal places and spread points to one, matching the model fields.
+Spread and moneyline outcomes are matched to home and away by team name. A total is matched by the outcome names `Over` and `Under`. Prices quantize to three decimal places. Spread points and the total quantize to one decimal place.
+
+A total is kept only when both prices are greater than 1 and both points quantize to the same number greater than 0. A missing total, a one-sided total, mismatched points, or a non-positive total is stored as null. That does not drop the spread or the moneyline.
 
 ## Week
 
@@ -40,13 +44,13 @@ The default odds request uses the week that contains the request time. Callers c
 
 ## One bookmaker
 
-The odds request asks only for `fanduel`, `draftkings`, and `betmgm`. For each game the client keeps the first of those books that has both a complete moneyline and a complete spread:
+The odds request asks for `h2h`, `spreads`, and `totals`, and only for `fanduel`, `draftkings`, and `betmgm`. For each game the client keeps the first of those books that has both a complete moneyline and a complete spread:
 
 1. FanDuel
 2. DraftKings
 3. BetMGM
 
-A market is complete when both teams have a price greater than 1 after quantization. A spread also needs opposite points. If none of the three books qualify, the game has no line. Markets from two books are not combined.
+A market is complete when both teams have a price greater than 1 after quantization. A spread also needs opposite points. If none of the three books qualify, the game has no line. Markets from two books are not combined. A missing or unusable total does not disqualify a book and does not cause a fallback to the next book. The total, when kept, comes from that same book.
 
 ## Status
 

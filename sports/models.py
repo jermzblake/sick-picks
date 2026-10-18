@@ -179,6 +179,24 @@ class GameLine(models.Model):
         null=True,
         blank=True,
     )
+    game_total = models.DecimalField(
+        max_digits=4,
+        decimal_places=1,
+        null=True,
+        blank=True,
+    )
+    over_price = models.DecimalField(
+        max_digits=6,
+        decimal_places=3,
+        null=True,
+        blank=True,
+    )
+    under_price = models.DecimalField(
+        max_digits=6,
+        decimal_places=3,
+        null=True,
+        blank=True,
+    )
     captured_at = models.DateTimeField()
 
     class Meta:
@@ -219,6 +237,24 @@ class GameLine(models.Model):
                     | Q(home_moneyline__isnull=False, away_moneyline__isnull=False)
                 ),
                 name='gameline_has_market',
+            ),
+            models.CheckConstraint(
+                condition=(
+                    Q(
+                        game_total__isnull=True,
+                        over_price__isnull=True,
+                        under_price__isnull=True,
+                    )
+                    | Q(
+                        game_total__isnull=False,
+                        game_total__gt=0,
+                        over_price__isnull=False,
+                        under_price__isnull=False,
+                        over_price__gt=1,
+                        under_price__gt=1,
+                    )
+                ),
+                name='gameline_total_complete',
             ),
         ]
         indexes = [
