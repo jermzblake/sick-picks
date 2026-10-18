@@ -1,0 +1,50 @@
+<article id="game-{{ card.game.id }}">
+  <h2>{{ card.game.away_team.abbreviation }} at {{ card.game.home_team.abbreviation }}</h2>
+  <p>{{ card.game.kickoff_at }}</p>
+  {% if card.line %}
+    {% if card.line.home_spread is not None %}
+      <p>
+        Spread:
+        {{ card.game.away_team.abbreviation }} {{ card.line.away_spread }}
+        /
+        {{ card.game.home_team.abbreviation }} {{ card.line.home_spread }}
+      </p>
+    {% endif %}
+    {% if card.line.home_moneyline is not None %}
+      <p>
+        Moneyline:
+        {{ card.game.away_team.abbreviation }} {{ card.line.away_moneyline }}
+        /
+        {{ card.game.home_team.abbreviation }} {{ card.line.home_moneyline }}
+      </p>
+    {% endif %}
+  {% else %}
+    <p>No line</p>
+  {% endif %}
+  {% if card.error %}
+    <p>{{ card.error }}</p>
+  {% endif %}
+  {% for pick in card.picks %}
+    <p>
+      Submitted {{ pick.get_pick_type_display }}:
+      {{ pick.picked_team.abbreviation }}
+      {% if pick.line_value is not None %}{{ pick.line_value }}{% endif %}
+      {% if pick.price is not None %}{{ pick.price }}{% endif %}
+    </p>
+  {% endfor %}
+  {% for form in card.forms %}
+    <form
+      method="post"
+      action="{% url 'submit-pick' card.game.id %}"
+      hx-post="{% url 'submit-pick' card.game.id %}"
+      hx-target="#game-{{ card.game.id }}"
+      hx-swap="outerHTML"
+    >
+      {% csrf_token %}
+      {{ form.picked_team }}
+      {{ form.pick_type }}
+      {{ form.game_line }}
+      <button type="submit">Submit {{ form.market_label }}</button>
+    </form>
+  {% endfor %}
+</article>

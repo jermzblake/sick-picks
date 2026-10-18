@@ -15,7 +15,7 @@ from tests.builders import (
 )
 
 from picks.models import Pick
-from picks.operations import settle_game, submit_pick, upcoming_games
+from picks.operations import settle_game, submit_pick, upcoming_games, user_picks
 
 pytestmark = pytest.mark.django_db
 
@@ -480,6 +480,46 @@ def test_settle_game_rejects_a_final_game_without_scores():
     pick.refresh_from_db()
     assert pick.result is None
     assert pick.points is None
+
+
+def test_user_picks_are_newest_first_and_exclude_other_users():
+    game, home, away = _matchup()
+    line = make_line(
+        game,
+        captured_at=_EARLIER,
+        home_moneyline=Decimal('1.500'),
+        away_moneyline=Decimal('2.500'),
+    )
+    owner = make_user()
+    other = make_user()
+    older = submit_pick(
+        user=owner,
+        game=game,
+        game_line=line,
+        picked_team=home,
+        pick_type=Pick.PickType.SPREAD,
+        now=_EARLIER,
+    )
+    newer = submit_pick(
+        user=owner,
+        game=game,
+        game_line=line,
+        picked_team=away,
+        pick_type=Pick.PickType.MONEYLINE,
+        now=_NOW,
+    )
+    submit_pick(
+        user=other,
+        game=game,
+        game_line=line,
+        picked_team=home,
+        pick_type=Pick.PickType.SPREAD,
+        now=_NOW,
+    )
+
+    assert list(user_picks(owner)) == [newer, older]
+    assert list(user_picks(owner, games=[])) == []
+    assert list(user_picks(owner, games=[game])) == [newer, older]
 
 
 def test_settle_game_with_no_picks_returns_an_empty_list():

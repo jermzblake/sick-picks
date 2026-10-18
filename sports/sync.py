@@ -1,13 +1,17 @@
 from dataclasses import dataclass
+from datetime import datetime
 
 from django.db import DatabaseError, transaction
 
 from sports.models import Game, GameLine, League, Season, Team
+from sports.providers.the_odds_api.client import OddsApiClient
 from sports.providers.the_odds_api.normalize import (
+    MappingError,
     NormalizedGame,
     NormalizedGameLine,
     NormalizedSlate,
     NormalizedTeam,
+    normalize,
 )
 from sports.providers.the_odds_api.weeks import season_year_for
 from sports.seed import NFL_ABBREVIATION, PLACEHOLDER_PREFIX
@@ -47,6 +51,40 @@ class SyncReport:
     games_skipped: int
     lines_created: int
     problems: tuple[str, ...]
+
+
+def run_nfl_sync(
+    *,
+    api_key: str,
+    commence_from: datetime | None = None,
+    commence_to: datetime | None = None,
+) -> SyncReport:
+    """Fetch a slate from The Odds API and upsert it.
+
+    Omit both bounds to sync the current NFL week. Pass both to sync
+    another half-open window.
+    """
+    payload = OddsApiClient(api_key).fetch(
+        commence_time_from=commence_from,
+        commence_time_to=commence_to,
+    )
+    event_problems: list[str] = []
+
+    def remember(event_id: str, exc: MappingError) -> None:
+        event_problems.append(f'{event_id}: {exc}')
+
+    slate = normalize(payload, on_event_error=remember)
+    report = sync_slate(slate)
+    if not event_problems:
+        return report
+    return SyncReport(
+        games_created=report.games_created,
+        games_updated=report.games_updated,
+        games_unchanged=report.games_unchanged,
+        games_skipped=report.games_skipped,
+        lines_created=report.lines_created,
+        problems=tuple(event_problems) + report.problems,
+    )
 
 
 @dataclass(frozen=True)

@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block title %}Week {{ week }} — Sick Picks{% endblock %}
+
+{% block content %}
+  <h1>Week {{ week }}</h1>
+  <p>
+    {% if week > 1 %}
+      <a href="?week={{ week|add:'-1' }}">Previous week</a>
+    {% endif %}
+    <a href="?week={{ week|add:'1' }}">Next week</a>
+  </p>
+  {% if season is None %}
+    <p>NFL season is not available.</p>
+  {% elif not cards %}
+    <p>No open games this week.</p>
+  {% endif %}
+  {% for card in cards %}
+    {% include "picks/_game_card.html" with card=card %}
+  {% endfor %}
+{% endblock %}

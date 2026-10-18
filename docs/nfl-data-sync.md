@@ -36,4 +36,6 @@ python manage.py sync_nfl_data \
 
 The command stops before writing if the API key is missing, the request fails, the payload cannot be read, or the NFL league has not been seeded.
 
+The same sync is available in Django Admin. Open Games and choose **Sync NFL data**. Leave both bounds empty for the current week, or set both to sync another window.
+
 A missing season, an unmatched team, or one bad event is printed under `Problems` and that game is skipped. The rest of the slate is still saved. The summary reports games created, updated, unchanged, and skipped, plus lines created.

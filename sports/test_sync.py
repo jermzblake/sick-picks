@@ -356,7 +356,7 @@ def test_sync_command_reports_skips_and_rejects_a_bad_payload(monkeypatch):
             return payload
 
     monkeypatch.setattr(
-        'sports.management.commands.sync_nfl_data.OddsApiClient',
+        'sports.sync.OddsApiClient',
         FakeClient,
     )
     stdout = StringIO()
@@ -399,7 +399,7 @@ def test_sync_command_passes_a_commence_window_and_requires_both_bounds(monkeypa
             )
 
     monkeypatch.setattr(
-        'sports.management.commands.sync_nfl_data.OddsApiClient',
+        'sports.sync.OddsApiClient',
         FakeClient,
     )
     seed_sports('NFL', 2026)
