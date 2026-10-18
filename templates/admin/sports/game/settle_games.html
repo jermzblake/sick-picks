@@ -1,0 +1,14 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+  <h1>Settle games</h1>
+  <p>
+    Leave both bounds empty to settle the current NFL week.
+    To settle a different window, set both times. The end is exclusive.
+  </p>
+  <form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit" name="apply">Settle</button>
+  </form>
+{% endblock %}
