@@ -209,6 +209,41 @@ def test_line_and_pick_admins_are_view_only(admin_client):
     assert pick_add.status_code == 403
 
 
+def test_pick_changelist_shows_an_over_total(client):
+    game, _home, _away = _matchup()
+    line = make_line(
+        game,
+        game_total=Decimal('44.5'),
+        over_price=Decimal('1.909'),
+        under_price=Decimal('1.909'),
+        captured_at=_NOW - datetime.resolution,
+    )
+    submit_pick(
+        user=make_user(),
+        game=game,
+        game_line=line,
+        pick_type=Pick.PickType.TOTAL,
+        total_side=Pick.TotalSide.OVER,
+        now=_NOW,
+    )
+    staff = make_user()
+    staff.is_staff = True
+    staff.save(update_fields=['is_staff'])
+    staff.user_permissions.add(
+        Permission.objects.get(codename='view_pick', content_type__app_label='picks')
+    )
+    client.force_login(staff)
+
+    response = client.get(reverse('admin:picks_pick_changelist'))
+    add = client.get(reverse('admin:picks_pick_add'))
+
+    body = response.content.decode()
+    assert response.status_code == 200
+    assert 'Over' in body
+    assert '44.5' in body
+    assert add.status_code == 403
+
+
 def _changelist_queries(admin_client, url):
     with CaptureQueriesContext(connection) as captured:
         response = admin_client.get(url)

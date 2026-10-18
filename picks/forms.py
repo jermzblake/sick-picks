@@ -6,15 +6,11 @@ from picks.models import Pick
 CLIENT_MARKETS = (
     (Pick.PickType.SPREAD, Pick.PickType.SPREAD.label),
     (Pick.PickType.MONEYLINE, Pick.PickType.MONEYLINE.label),
+    (Pick.PickType.TOTAL, Pick.PickType.TOTAL.label),
 )
 
 
 class PickForm(forms.Form):
-    picked_team = forms.ModelChoiceField(
-        queryset=Team.objects.none(),
-        widget=forms.RadioSelect,
-        empty_label=None,
-    )
     pick_type = forms.ChoiceField(
         choices=CLIENT_MARKETS,
         widget=forms.HiddenInput,
@@ -32,11 +28,19 @@ class PickForm(forms.Form):
         self.game = game
         self.market = pick_type
         super().__init__(*args, **kwargs)
-        team_field = self.fields['picked_team']
-        assert isinstance(team_field, forms.ModelChoiceField)
-        team_field.queryset = Team.objects.filter(
-            pk__in=[game.home_team_id, game.away_team_id]
-        )
+        if pick_type == Pick.PickType.TOTAL:
+            self.fields['total_side'] = forms.ChoiceField(
+                choices=Pick.TotalSide.choices,
+                widget=forms.RadioSelect,
+            )
+        else:
+            self.fields['picked_team'] = forms.ModelChoiceField(
+                queryset=Team.objects.filter(
+                    pk__in=[game.home_team_id, game.away_team_id]
+                ),
+                widget=forms.RadioSelect,
+                empty_label=None,
+            )
         if not self.is_bound:
             self.initial.setdefault('pick_type', pick_type)
             if line is not None:

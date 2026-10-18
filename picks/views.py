@@ -69,13 +69,16 @@ def submit_game_pick(request: HttpRequest, game_id: int) -> HttpResponse:
             market=market,
         )
 
+    picked_team = form.cleaned_data.get('picked_team')
+    total_side = form.cleaned_data.get('total_side')
     try:
         submit_pick(
             user=request.user,
             game=game,
             game_line=form.cleaned_data['game_line'],
-            picked_team=form.cleaned_data['picked_team'],
+            picked_team=picked_team,
             pick_type=form.cleaned_data['pick_type'],
+            total_side=total_side,
             now=now,
         )
     except ValidationError as exc:
@@ -85,7 +88,8 @@ def submit_game_pick(request: HttpRequest, game_id: int) -> HttpResponse:
             now,
             message=' '.join(exc.messages),
             market=market,
-            picked_team_id=form.cleaned_data['picked_team'].pk,
+            picked_team_id=None if picked_team is None else picked_team.pk,
+            total_side=total_side,
         )
 
     if _is_htmx(request):
@@ -141,6 +145,7 @@ def _reject(
     message: str,
     market: str | None = None,
     picked_team_id: int | None = None,
+    total_side: str | None = None,
 ) -> HttpResponse:
     card = _card_for(
         request,
@@ -149,6 +154,7 @@ def _reject(
         error=message,
         market=market,
         picked_team_id=picked_team_id,
+        total_side=total_side,
     )
     if _is_htmx(request):
         return render(request, 'picks/_game_card.html', {'card': card}, status=422)
@@ -169,13 +175,16 @@ def _card_for(
     error: str | None = None,
     market: str | None = None,
     picked_team_id: int | None = None,
+    total_side: str | None = None,
 ) -> GameCard:
     item = _open_item(game, now)
     line = item.line if item is not None else None
     picks = list(user_picks(request.user, games=[game]))
-    initial = {}
+    initial: dict[str, int | str] = {}
     if picked_team_id is not None:
         initial['picked_team'] = picked_team_id
+    if total_side is not None:
+        initial['total_side'] = total_side
     replacements = {}
     if market is not None and line is not None and initial:
         replacements[market] = PickForm(
@@ -231,6 +240,8 @@ def _markets(line: GameLine) -> list[str]:
         markets.append(Pick.PickType.SPREAD)
     if line.home_moneyline is not None:
         markets.append(Pick.PickType.MONEYLINE)
+    if line.game_total is not None:
+        markets.append(Pick.PickType.TOTAL)
     return markets
 
 
