@@ -24,22 +24,27 @@ Local Django commands read `DATABASE_URL` from `.env`. and run the development s
 cp .env.example .env
 ```
 
-1. Start Postgres
+2. Start Postgres
 
 ```sh
 docker compose up -d
 ```
 
-1. Install dependencies if needed
+3. Install dependencies if needed
 
 ```sh
 uv sync --locked
 ```
 
-1. Apply migrations
+4. Apply migrations
 
 ```sh
 uv run python manage.py migrate
+```
+
+5. Start server
+
+```sh
 uv run python manage.py runserver
 ```
 
