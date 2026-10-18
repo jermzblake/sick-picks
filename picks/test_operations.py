@@ -1,10 +1,14 @@
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from io import StringIO
 
 import pytest
 from django.core.exceptions import ValidationError
+from django.core.management import call_command
+from django.core.management.base import CommandError
 from django.db import connection
 from django.test.utils import CaptureQueriesContext
+from sports.providers.the_odds_api.weeks import week_window
 from tests.builders import (
     make_game,
     make_league,
@@ -15,7 +19,14 @@ from tests.builders import (
 )
 
 from picks.models import Pick
-from picks.operations import settle_game, submit_pick, upcoming_games, user_picks
+from picks.operations import (
+    SettleReport,
+    settle_game,
+    settle_window,
+    submit_pick,
+    upcoming_games,
+    user_picks,
+)
 
 pytestmark = pytest.mark.django_db
 
@@ -527,3 +538,212 @@ def test_settle_game_with_no_picks_returns_an_empty_list():
     _finish(game, status='final', home_score=17, away_score=14)
 
     assert settle_game(game) == []
+
+
+def _spread(game, team):
+    submitted_at = game.kickoff_at - timedelta(minutes=1)
+    line = make_line(
+        game,
+        home_spread=Decimal('-3.0'),
+        away_spread=Decimal('3.0'),
+        captured_at=submitted_at - timedelta(minutes=1),
+    )
+    return submit_pick(
+        user=make_user(),
+        game=game,
+        game_line=line,
+        picked_team=team,
+        pick_type=Pick.PickType.SPREAD,
+        now=submitted_at,
+    )
+
+
+def test_settle_window_grades_final_games_in_the_current_week():
+    start, end = week_window(_NOW)
+    opening, opening_home, _opening_away = _matchup(kickoff_at=start)
+    closing, closing_home, _closing_away = _matchup(
+        kickoff_at=end - timedelta(seconds=1)
+    )
+    outside, outside_home, _outside_away = _matchup(kickoff_at=end)
+    scheduled, scheduled_home, _scheduled_away = _matchup()
+    opening_pick = _spread(opening, opening_home)
+    closing_pick = _spread(closing, closing_home)
+    outside_pick = _spread(outside, outside_home)
+    scheduled_pick = _spread(scheduled, scheduled_home)
+    _finish(opening, status='final', home_score=30, away_score=10)
+    _finish(closing, status='final', home_score=30, away_score=10)
+    _finish(outside, status='final', home_score=30, away_score=10)
+
+    report = settle_window(now=_NOW)
+
+    assert report == SettleReport(2, ())
+    for pick in (opening_pick, closing_pick):
+        pick.refresh_from_db()
+        assert pick.result == Pick.Result.WIN
+    outside_pick.refresh_from_db()
+    scheduled_pick.refresh_from_db()
+    assert outside_pick.result is None
+    assert scheduled_pick.result is None
+
+
+def test_settle_window_uses_an_explicit_kickoff_window():
+    inside, inside_home, _inside_away = _matchup(
+        kickoff_at=datetime(2026, 10, 13, 7, tzinfo=UTC)
+    )
+    outside, outside_home, _outside_away = _matchup(
+        kickoff_at=datetime(2026, 10, 20, 7, tzinfo=UTC)
+    )
+    inside_pick = _spread(inside, inside_home)
+    outside_pick = _spread(outside, outside_home)
+    _finish(inside, status='final', home_score=30, away_score=10)
+    _finish(outside, status='final', home_score=30, away_score=10)
+
+    report = settle_window(
+        kickoff_from=datetime(2026, 10, 13, 7, tzinfo=UTC),
+        kickoff_to=datetime(2026, 10, 20, 7, tzinfo=UTC),
+        now=_NOW,
+    )
+
+    assert report.settled == 1
+    inside_pick.refresh_from_db()
+    outside_pick.refresh_from_db()
+    assert inside_pick.result == Pick.Result.WIN
+    assert outside_pick.result is None
+
+
+def test_settle_window_voids_a_cancelled_game_and_keeps_going_after_a_missing_score():
+    cancelled, cancelled_home, _cancelled_away = _matchup()
+    unscored, unscored_home, _unscored_away = _matchup(
+        kickoff_at=_KICKOFF + timedelta(hours=1)
+    )
+    scored, scored_home, _scored_away = _matchup(
+        kickoff_at=_KICKOFF + timedelta(hours=2)
+    )
+    cancelled_pick = _spread(cancelled, cancelled_home)
+    unscored_pick = _spread(unscored, unscored_home)
+    scored_pick = _spread(scored, scored_home)
+    _finish(cancelled, status='cancelled')
+    _finish(unscored, status='final')
+    _finish(scored, status='final', home_score=30, away_score=10)
+
+    report = settle_window(now=_NOW)
+
+    assert report.settled == 2
+    assert len(report.problems) == 1
+    assert 'missing a score' in report.problems[0]
+    cancelled_pick.refresh_from_db()
+    unscored_pick.refresh_from_db()
+    scored_pick.refresh_from_db()
+    assert cancelled_pick.result == Pick.Result.VOID
+    assert unscored_pick.result is None
+    assert scored_pick.result == Pick.Result.WIN
+
+
+def test_settle_window_is_stable_when_run_twice():
+    game, home, _away = _matchup()
+    pick = _spread(game, home)
+    _finish(game, status='final', home_score=30, away_score=10)
+
+    first = settle_window(now=_NOW)
+    pick.refresh_from_db()
+    graded = (pick.result, pick.points)
+    second = settle_window(now=_NOW)
+    pick.refresh_from_db()
+
+    assert first.settled == 1
+    assert second.settled == 1
+    assert (pick.result, pick.points) == graded
+
+
+def test_settle_window_with_no_final_games_settles_nothing():
+    report = settle_window(now=_NOW)
+
+    assert report.settled == 0
+    assert report.problems == ()
+
+
+@pytest.mark.parametrize(
+    ('kickoff_from', 'kickoff_to', 'message'),
+    [
+        (
+            datetime(2026, 10, 13, 7, tzinfo=UTC),
+            None,
+            'together',
+        ),
+        (
+            datetime(2026, 10, 20, 7, tzinfo=UTC),
+            datetime(2026, 10, 13, 7, tzinfo=UTC),
+            'earlier',
+        ),
+        (
+            datetime(2026, 10, 13, 7),
+            datetime(2026, 10, 20, 7, tzinfo=UTC),
+            'timezone-aware',
+        ),
+        (
+            datetime(2026, 10, 13, 7, tzinfo=UTC),
+            datetime(2026, 10, 20, 7),
+            'timezone-aware',
+        ),
+    ],
+)
+def test_settle_window_rejects_bad_bounds_before_grading(
+    kickoff_from, kickoff_to, message
+):
+    game, home, _away = _matchup()
+    pick = _spread(game, home)
+    _finish(game, status='final', home_score=30, away_score=10)
+
+    with pytest.raises(ValueError, match=message):
+        settle_window(kickoff_from=kickoff_from, kickoff_to=kickoff_to, now=_NOW)
+
+    pick.refresh_from_db()
+    assert pick.result is None
+
+
+def test_settle_window_rejects_a_naive_now():
+    with pytest.raises(ValueError, match='timezone-aware'):
+        settle_window(now=datetime(2026, 9, 13, 12))
+
+
+def test_settle_games_command_prints_the_settled_count_and_problems():
+    scored, scored_home, _scored_away = _matchup()
+    unscored, _unscored_home, _unscored_away = _matchup(
+        kickoff_at=_KICKOFF + timedelta(hours=1)
+    )
+    _spread(scored, scored_home)
+    _finish(scored, status='final', home_score=30, away_score=10)
+    _finish(unscored, status='final')
+    stdout = StringIO()
+
+    call_command(
+        'settle_games',
+        '--from',
+        '2026-09-08T07:00:00Z',
+        '--to',
+        '2026-09-15T07:00:00Z',
+        stdout=stdout,
+    )
+
+    output = stdout.getvalue()
+    assert 'Settled: 1' in output
+    assert 'missing a score' in output
+
+
+def test_settle_games_command_rejects_bad_bounds():
+    with pytest.raises(CommandError, match='timezone-aware'):
+        call_command(
+            'settle_games',
+            kickoff_from='2026-10-13T07:00:00',
+            kickoff_to='2026-10-20T07:00:00',
+        )
+
+    with pytest.raises(CommandError, match='together'):
+        call_command('settle_games', kickoff_from='2026-10-13T07:00:00+00:00')
+
+    with pytest.raises(CommandError, match='earlier'):
+        call_command(
+            'settle_games',
+            kickoff_from='2026-10-20T07:00:00+00:00',
+            kickoff_to='2026-10-13T07:00:00+00:00',
+        )
