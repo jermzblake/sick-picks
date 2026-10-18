@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}Picks — Sick Picks{% endblock %}
+
+{% block content %}
+  <h1>Picks</h1>
+  {% if not picks %}
+    <p>No picks yet.</p>
+  {% else %}
+    <table>
+      <thead>
+        <tr>
+          <th>Game</th>
+          <th>Type</th>
+          <th>Pick</th>
+          <th>Terms</th>
+          <th>Submitted</th>
+          <th>Result</th>
+          <th>Points</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for pick in picks %}
+          <tr>
+            <td>{{ pick.game.away_team.abbreviation }} at {{ pick.game.home_team.abbreviation }}</td>
+            <td>{{ pick.get_pick_type_display }}</td>
+            <td>{{ pick.picked_team.abbreviation }}</td>
+            <td>
+              {% if pick.line_value is not None %}{{ pick.line_value }}{% endif %}
+              {% if pick.price is not None %}{{ pick.price }}{% endif %}
+            </td>
+            <td>{{ pick.submitted_at }}</td>
+            <td>{% if pick.result %}{{ pick.get_result_display }}{% else %}Pending{% endif %}</td>
+            <td>{% if pick.points is not None %}{{ pick.points }}{% endif %}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+{% endblock %}
