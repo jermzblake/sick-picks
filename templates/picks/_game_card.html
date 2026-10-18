@@ -18,6 +18,14 @@
         {{ card.game.home_team.abbreviation }} {{ card.line.home_moneyline }}
       </p>
     {% endif %}
+    {% if card.line.game_total is not None %}
+      <p>
+        Total: {{ card.line.game_total }}
+        Over {{ card.line.over_price }}
+        /
+        Under {{ card.line.under_price }}
+      </p>
+    {% endif %}
   {% else %}
     <p>No line</p>
   {% endif %}
@@ -41,7 +49,8 @@
       hx-swap="outerHTML"
     >
       {% csrf_token %}
-      {{ form.picked_team }}
+      {% if 'picked_team' in form.fields %}{{ form.picked_team }}{% endif %}
+      {% if 'total_side' in form.fields %}{{ form.total_side }}{% endif %}
       {{ form.pick_type }}
       {{ form.game_line }}
       <button type="submit">Submit {{ form.market_label }}</button>

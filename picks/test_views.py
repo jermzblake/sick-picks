@@ -1,3 +1,4 @@
+import re
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
@@ -55,6 +56,29 @@ def _post(client, game, team, line, pick_type, **extra):
             f'{prefix}-picked_team': team.pk,
             f'{prefix}-pick_type': pick_type,
             f'{prefix}-game_line': line.pk,
+        },
+        **extra,
+    )
+
+
+def _total_line(game, **overrides):
+    values = {
+        'captured_at': _NOW - timedelta(hours=1),
+        'game_total': Decimal('44.5'),
+        'over_price': Decimal('1.910'),
+        'under_price': Decimal('1.909'),
+    }
+    values.update(overrides)
+    return make_line(game, **values)
+
+
+def _post_total(client, game, line, side, **extra):
+    return client.post(
+        reverse('submit-pick', args=[game.id]),
+        {
+            'total-total_side': side,
+            'total-pick_type': Pick.PickType.TOTAL,
+            'total-game_line': line.pk,
         },
         **extra,
     )
@@ -504,6 +528,256 @@ def test_a_total_pick_renders_its_side_on_the_slate_and_in_history(client, monke
     assert 'KC' in history
     assert 'Over' in history
     assert '44.5' in history
+
+    game.status = 'final'
+    game.home_score = 30
+    game.away_score = 20
+    game.save(update_fields=['status', 'home_score', 'away_score'])
+    settle_game(game)
+    scored = client.get(reverse('pick-history')).content.decode()
+    assert 'Over' in scored
+    assert '44.5' in scored
+    assert 'Win' in scored
+    assert '1.00' in scored
+
+
+@pytest.mark.parametrize(
+    ('side', 'total', 'home_score', 'away_score', 'result', 'points'),
+    [
+        (Pick.TotalSide.OVER, Decimal('44.5'), 30, 20, 'Win', '1.00'),
+        (Pick.TotalSide.UNDER, Decimal('44.5'), 30, 20, 'Loss', '0.00'),
+        (Pick.TotalSide.OVER, Decimal('44.0'), 24, 20, 'Push', '0.50'),
+    ],
+)
+def test_history_shows_a_graded_total(
+    client,
+    side,
+    total,
+    home_score,
+    away_score,
+    result,
+    points,
+):
+    season = _season()
+    game, _home, _away = _game(season, abbr='KC')
+    line = _total_line(game, game_total=total)
+    user = make_user()
+    submit_pick(
+        user=user,
+        game=game,
+        game_line=line,
+        pick_type=Pick.PickType.TOTAL,
+        total_side=side,
+        now=_NOW,
+    )
+    game.status = 'final'
+    game.home_score = home_score
+    game.away_score = away_score
+    game.save(update_fields=['status', 'home_score', 'away_score'])
+    settle_game(game)
+    client.force_login(user)
+
+    body = client.get(reverse('pick-history')).content.decode()
+
+    assert side.label in body
+    assert str(total) in body
+    assert result in body
+    assert points in body
+
+
+def test_slate_offers_over_under_only_when_the_line_has_a_total(client, monkeypatch):
+    _freeze(monkeypatch)
+    season = _season()
+    priced, _priced_home, _priced_away = _game(season, abbr='KC')
+    _total_line(priced)
+    bare, _bare_home, bare_away = _game(season, abbr='BUF')
+    bare_away.abbreviation = 'MIA'
+    bare_away.save(update_fields=['abbreviation'])
+    make_line(bare, captured_at=_NOW - timedelta(hours=1))
+    client.force_login(make_user())
+
+    body = client.get(reverse('game-slate')).content.decode()
+
+    assert 'Total: 44.5' in body
+    assert 'Over 1.910' in body
+    assert 'Under 1.909' in body
+    assert body.count('name="total-total_side"') == 2
+    assert 'value="over"' in body
+    assert 'value="under"' in body
+    assert 'MIA' in body
+
+
+@pytest.mark.parametrize('side', [Pick.TotalSide.OVER, Pick.TotalSide.UNDER])
+def test_submitting_a_total_stores_the_side_and_number(client, monkeypatch, side):
+    _freeze(monkeypatch)
+    season = _season()
+    game, _home, _away = _game(season)
+    line = _total_line(game)
+    user = make_user()
+    client.force_login(user)
+
+    response = _post_total(client, game, line, side)
+
+    assert response.status_code == 302
+    assert response.url == reverse('game-slate')
+    pick = Pick.objects.get(user=user, game=game, pick_type=Pick.PickType.TOTAL)
+    assert pick.total_side == side
+    assert pick.picked_team is None
+    assert pick.line_value == Decimal('44.5')
+    assert pick.price is None
+
+
+def test_htmx_total_submit_returns_the_locked_card(client, monkeypatch):
+    _freeze(monkeypatch)
+    season = _season()
+    game, home, _away = _game(season, abbr='KC')
+    line = _total_line(game)
+    client.force_login(make_user())
+
+    response = _post_total(
+        client,
+        game,
+        line,
+        Pick.TotalSide.OVER,
+        HTTP_HX_REQUEST='true',
+    )
+
+    body = response.content.decode()
+    assert response.status_code == 200
+    assert 'Log out' not in body
+    assert 'Submitted Total' in body
+    assert 'Over' in body
+    assert '44.5' in body
+    assert 'name="total-total_side"' not in body
+    assert 'name="spread-picked_team"' in body
+    assert home.abbreviation in body
+
+
+def test_spread_and_total_stay_open_until_each_is_submitted(client, monkeypatch):
+    _freeze(monkeypatch)
+    season = _season()
+    game, home, _away = _game(season)
+    line = _total_line(game)
+    client.force_login(make_user())
+
+    spread = _post(
+        client,
+        game,
+        home,
+        line,
+        Pick.PickType.SPREAD,
+        HTTP_HX_REQUEST='true',
+    )
+    after_spread = spread.content.decode()
+    assert spread.status_code == 200
+    assert 'name="spread-picked_team"' not in after_spread
+    assert 'name="total-total_side"' in after_spread
+
+    total = _post_total(
+        client,
+        game,
+        line,
+        Pick.TotalSide.UNDER,
+        HTTP_HX_REQUEST='true',
+    )
+    after_total = total.content.decode()
+    assert total.status_code == 200
+    assert 'Submitted Total' in after_total
+    assert 'Under' in after_total
+    assert 'name="total-total_side"' not in after_total
+    assert Pick.objects.filter(game=game).count() == 2
+
+
+def test_missing_total_side_is_rejected(client, monkeypatch):
+    _freeze(monkeypatch)
+    season = _season()
+    game, _home, _away = _game(season)
+    line = _total_line(game)
+    client.force_login(make_user())
+
+    response = client.post(
+        reverse('submit-pick', args=[game.id]),
+        {
+            'total-pick_type': Pick.PickType.TOTAL,
+            'total-game_line': line.pk,
+        },
+        HTTP_HX_REQUEST='true',
+    )
+
+    assert response.status_code == 422
+    assert b'required' in response.content
+    assert Pick.objects.count() == 0
+
+
+def test_a_second_total_is_rejected(client, monkeypatch):
+    _freeze(monkeypatch)
+    season = _season()
+    game, _home, _away = _game(season)
+    line = _total_line(game)
+    user = make_user()
+    client.force_login(user)
+    _post_total(client, game, line, Pick.TotalSide.OVER, HTTP_HX_REQUEST='true')
+
+    response = _post_total(
+        client,
+        game,
+        line,
+        Pick.TotalSide.UNDER,
+        HTTP_HX_REQUEST='true',
+    )
+
+    assert response.status_code == 422
+    assert b'already exists' in response.content
+    assert Pick.objects.filter(user=user, game=game).count() == 1
+
+
+def test_total_without_a_posted_number_is_rejected(client, monkeypatch):
+    _freeze(monkeypatch)
+    season = _season()
+    game, _home, _away = _game(season)
+    line = make_line(game, captured_at=_NOW - timedelta(hours=1))
+    client.force_login(make_user())
+
+    response = _post_total(
+        client,
+        game,
+        line,
+        Pick.TotalSide.OVER,
+        HTTP_HX_REQUEST='true',
+    )
+
+    assert response.status_code == 422
+    assert b'Total is not available' in response.content
+    assert Pick.objects.count() == 0
+
+
+def test_stale_total_keeps_the_selected_side(client, monkeypatch):
+    _freeze(monkeypatch)
+    season = _season()
+    game, _home, _away = _game(season)
+    stale = _total_line(
+        game,
+        game_total=Decimal('41.0'),
+        captured_at=_NOW - timedelta(hours=2),
+    )
+    _total_line(game, captured_at=_NOW - timedelta(minutes=1))
+    client.force_login(make_user())
+
+    response = _post_total(
+        client,
+        game,
+        stale,
+        Pick.TotalSide.UNDER,
+        HTTP_HX_REQUEST='true',
+    )
+
+    body = response.content.decode()
+    assert response.status_code == 422
+    assert 'current snapshot' in body
+    assert '44.5' in body
+    assert '41.0' not in body
+    assert re.search(r'value="under"[^>]*checked', body)
+    assert Pick.objects.count() == 0
 
 
 def test_history_is_empty_until_the_user_submits(client):
