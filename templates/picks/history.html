@@ -29,7 +29,7 @@
               {% if pick.line_value is not None %}{{ pick.line_value }}{% endif %}
               {% if pick.price is not None %}{{ pick.price }}{% endif %}
             </td>
-            <td>{{ pick.submitted_at }}</td>
+            <td>{{ pick.submitted_at|date:"D, M j, H:i T" }}</td>
             <td>{% if pick.result %}{{ pick.get_result_display }}{% else %}Pending{% endif %}</td>
             <td>{% if pick.points is not None %}{{ pick.points }}{% endif %}</td>
           </tr>

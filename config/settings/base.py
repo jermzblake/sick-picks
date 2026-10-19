@@ -20,6 +20,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'config.middleware.TimezoneMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django_htmx.middleware.HtmxMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',

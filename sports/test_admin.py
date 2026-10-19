@@ -485,3 +485,36 @@ def test_nfl_sync_requires_an_api_key(admin_client, monkeypatch):
 
     assert response.status_code == 200
     assert b'ODDS_API_KEY' in response.content
+
+
+def test_admin_pages_include_the_local_time_script(admin_client):
+    game, _home, _away = _matchup()
+
+    change = admin_client.get(reverse('admin:sports_game_change', args=[game.pk]))
+    sync = admin_client.get(reverse('admin:sports_game_sync'))
+
+    assert b'id="local-admin-times"' in change.content
+    assert b'value="17:00:00"' in change.content
+    assert b'vDateTimeField' in sync.content
+
+
+def test_admin_clock_input_stays_utc_with_a_timezone_cookie(admin_client, monkeypatch):
+    seen = {}
+
+    def fake_run(**kwargs):
+        seen.update(kwargs)
+        return SyncReport(0, 0, 0, 0, 0, ())
+
+    monkeypatch.setattr('sports.admin.run_nfl_sync', fake_run)
+    admin_client.cookies['timezone'] = 'America/New_York'
+
+    admin_client.post(
+        reverse('admin:sports_game_sync'),
+        {
+            'commence_from': '2026-10-13 07:00:00',
+            'commence_to': '2026-10-20 07:00:00',
+        },
+    )
+
+    assert seen['commence_from'] == datetime(2026, 10, 13, 7, tzinfo=UTC)
+    assert seen['commence_to'] == datetime(2026, 10, 20, 7, tzinfo=UTC)
