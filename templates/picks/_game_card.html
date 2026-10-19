@@ -1,6 +1,6 @@
 <article id="game-{{ card.game.id }}">
   <h2>{{ card.game.away_team.abbreviation }} at {{ card.game.home_team.abbreviation }}</h2>
-  <p>{{ card.game.kickoff_at }}</p>
+  <p>{{ card.game.kickoff_at|date:"D, M j, H:i T" }}</p>
   {% if card.line %}
     {% if card.line.home_spread is not None %}
       <p>

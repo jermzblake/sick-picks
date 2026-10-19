@@ -1,0 +1,229 @@
+{% extends "admin/base.html" %}
+
+{% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block extrahead %}
+  {{ block.super }}
+  <script id="local-admin-times">
+    (function () {
+      function browserZone() {
+        try {
+          return Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+        } catch (error) {
+          return '';
+        }
+      }
+
+      function readCookie() {
+        var match = document.cookie.match(/(?:^|; )timezone=([^;]*)/);
+        if (!match) return '';
+        try {
+          return decodeURIComponent(match[1]);
+        } catch (error) {
+          return '';
+        }
+      }
+
+      function writeCookie(zone) {
+        var secure = location.protocol === 'https:' ? '; Secure' : '';
+        document.cookie = 'timezone=' + encodeURIComponent(zone)
+          + '; Path=/; Max-Age=31536000; SameSite=Lax' + secure;
+      }
+
+      function validZone(zone) {
+        if (!zone) return '';
+        try {
+          Intl.DateTimeFormat('en-US', { timeZone: zone }).format();
+          return zone;
+        } catch (error) {
+          return '';
+        }
+      }
+
+      function parts(date, timeZone) {
+        var map = {};
+        new Intl.DateTimeFormat('en-US', {
+          timeZone: timeZone,
+          hourCycle: 'h23',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          timeZoneName: 'short',
+        }).formatToParts(date).forEach(function (part) {
+          map[part.type] = part.value;
+        });
+        if (map.hour === '24') map.hour = '00';
+        return map;
+      }
+
+      function offsetMs(date, timeZone) {
+        var map = parts(date, timeZone);
+        var asUtc = Date.UTC(
+          +map.year,
+          +map.month - 1,
+          +map.day,
+          +map.hour,
+          +map.minute,
+          +map.second
+        );
+        return asUtc - date.getTime();
+      }
+
+      function pad(number) {
+        return String(number).padStart(2, '0');
+      }
+
+      function formatUtc(date) {
+        return date.getUTCFullYear() + '-' + pad(date.getUTCMonth() + 1) + '-'
+          + pad(date.getUTCDate()) + ' ' + pad(date.getUTCHours()) + ':'
+          + pad(date.getUTCMinutes()) + ':' + pad(date.getUTCSeconds());
+      }
+
+      function formatLocal(date, timeZone) {
+        var map = parts(date, timeZone);
+        return {
+          date: map.year + '-' + map.month + '-' + map.day,
+          time: map.hour + ':' + map.minute + ':' + map.second,
+          abbr: map.timeZoneName || 'UTC',
+        };
+      }
+
+      function parseUtc(value) {
+        var match = /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?$/.exec(
+          value.trim()
+        );
+        if (!match) return null;
+        return new Date(Date.UTC(
+          +match[1],
+          +match[2] - 1,
+          +match[3],
+          +(match[4] || 0),
+          +(match[5] || 0),
+          +(match[6] || 0)
+        ));
+      }
+
+      function utcFromLocal(dateValue, timeValue, timeZone) {
+        var date = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateValue.trim());
+        var time = /^(\d{2}):(\d{2})(?::(\d{2}))?$/.exec(timeValue.trim());
+        if (!date || !time) return null;
+        var guess = Date.UTC(
+          +date[1], +date[2] - 1, +date[3], +time[1], +time[2], +(time[3] || 0)
+        );
+        var corrected = guess - offsetMs(new Date(guess), timeZone);
+        return new Date(guess - offsetMs(new Date(corrected), timeZone));
+      }
+
+      function label(node, text) {
+        var existing = node.querySelector('.timezone-label');
+        if (!existing) {
+          existing = document.createElement('span');
+          existing.className = 'timezone-label';
+          node.appendChild(document.createTextNode(' '));
+          node.appendChild(existing);
+        }
+        existing.textContent = text;
+      }
+
+      function localize(zone) {
+        if (zone) {
+          document.body.dataset.adminUtcOffset = String(
+            Math.round(offsetMs(new Date(), zone) / 1000)
+          );
+        }
+        document.querySelectorAll('p.datetime').forEach(function (row) {
+          var dateInput = row.querySelector('.vDateField');
+          var timeInput = row.querySelector('.vTimeField');
+          if (!dateInput || !timeInput) return;
+          if (!zone) {
+            label(row, 'UTC');
+            return;
+          }
+          row.dataset.localized = zone;
+          label(row, formatLocal(new Date(), zone).abbr);
+          if (!dateInput.value || !timeInput.value) return;
+          var utc = parseUtc(dateInput.value + ' ' + timeInput.value);
+          if (!utc) return;
+          var local = formatLocal(utc, zone);
+          dateInput.value = local.date;
+          timeInput.value = local.time;
+          label(row, local.abbr);
+        });
+        document.querySelectorAll('input.vDateTimeField').forEach(function (input) {
+          if (!zone) {
+            label(input.parentNode, 'UTC');
+            return;
+          }
+          input.dataset.localized = zone;
+          label(input.parentNode, formatLocal(new Date(), zone).abbr);
+          if (!input.value.trim()) return;
+          var utc = parseUtc(input.value);
+          if (!utc) return;
+          var local = formatLocal(utc, zone);
+          input.value = local.date + ' ' + local.time;
+          label(input.parentNode, local.abbr);
+        });
+      }
+
+      function toUtc(form) {
+        form.querySelectorAll('p.datetime[data-localized]').forEach(function (row) {
+          var dateInput = row.querySelector('.vDateField');
+          var timeInput = row.querySelector('.vTimeField');
+          if (!dateInput.value || !timeInput.value) return;
+          var utc = utcFromLocal(dateInput.value, timeInput.value, row.dataset.localized);
+          if (!utc) return;
+          var formatted = formatUtc(utc);
+          dateInput.value = formatted.slice(0, 10);
+          timeInput.value = formatted.slice(11);
+          delete row.dataset.localized;
+        });
+        form.querySelectorAll('input.vDateTimeField[data-localized]').forEach(function (input) {
+          var match = /^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}(?::\d{2})?)$/.exec(input.value.trim());
+          if (!match) return;
+          var utc = utcFromLocal(match[1], match[2], input.dataset.localized);
+          if (!utc) return;
+          input.value = formatUtc(utc);
+          delete input.dataset.localized;
+        });
+      }
+
+      var zone = browserZone();
+      if (zone && readCookie() !== zone) {
+        var alreadyTried = false;
+        try {
+          alreadyTried = sessionStorage.getItem('timezone-reload') === zone;
+          if (!alreadyTried) sessionStorage.setItem('timezone-reload', zone);
+        } catch (error) {
+          alreadyTried = true;
+        }
+        if (!alreadyTried) {
+          writeCookie(zone);
+          location.reload();
+          return;
+        }
+      }
+
+      document.addEventListener('DOMContentLoaded', function () {
+        var active = validZone(readCookie());
+        localize(active);
+        document.querySelectorAll('form').forEach(function (form) {
+          form.addEventListener('submit', function () {
+            toUtc(form);
+          });
+        });
+      });
+    })();
+  </script>
+{% endblock %}
+
+{% block branding %}
+<div id="site-name"><a href="{% url 'admin:index' %}">{{ site_header|default:_('Django administration') }}</a></div>
+{% if user.is_anonymous %}
+  {% include "admin/color_theme_toggle.html" %}
+{% endif %}
+{% endblock %}
+
+{% block nav-global %}{% endblock %}

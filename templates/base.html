@@ -3,6 +3,37 @@
 <head>
   <meta charset="utf-8">
   <title>{% block title %}Sick Picks{% endblock %}</title>
+  <script>
+    (function () {
+      var zone;
+      try {
+        zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      } catch (error) {
+        return;
+      }
+      if (!zone) return;
+      var match = document.cookie.match(/(?:^|; )timezone=([^;]*)/);
+      var current = '';
+      if (match) {
+        try {
+          current = decodeURIComponent(match[1]);
+        } catch (error) {
+          current = '';
+        }
+      }
+      if (current === zone) return;
+      try {
+        if (sessionStorage.getItem('timezone-reload') === zone) return;
+        sessionStorage.setItem('timezone-reload', zone);
+      } catch (error) {
+        return;
+      }
+      var secure = location.protocol === 'https:' ? '; Secure' : '';
+      document.cookie = 'timezone=' + encodeURIComponent(zone)
+        + '; Path=/; Max-Age=31536000; SameSite=Lax' + secure;
+      location.reload();
+    })();
+  </script>
   {% load django_htmx %}
   {% htmx_script %}
   <script>

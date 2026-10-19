@@ -22,7 +22,9 @@ def _window_bound(*, label: str, help_text: str) -> forms.DateTimeField:
         required=False,
         label=label,
         help_text=help_text,
-        widget=forms.DateTimeInput(attrs={'placeholder': _DATETIME_EXAMPLE}),
+        widget=forms.DateTimeInput(
+            attrs={'placeholder': _DATETIME_EXAMPLE, 'class': 'vDateTimeField'},
+        ),
     )
 
 
