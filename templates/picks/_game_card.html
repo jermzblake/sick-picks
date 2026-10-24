@@ -1,5 +1,15 @@
 <article id="game-{{ card.game.id }}">
-  <h2>{{ card.game.away_team.abbreviation }} at {{ card.game.home_team.abbreviation }}</h2>
+  <h2 class="matchup-card__heading">
+    <span class="matchup-card__team-row team-{{ card.game.away_team.abbreviation|lower }}">
+      <span class="team-badge" aria-hidden="true"></span>
+      <span class="team-name">{{ card.game.away_team.abbreviation }}</span>
+    </span>
+    <span>at</span>
+    <span class="matchup-card__team-row team-{{ card.game.home_team.abbreviation|lower }}">
+      <span class="team-badge" aria-hidden="true"></span>
+      <span class="team-name">{{ card.game.home_team.abbreviation }}</span>
+    </span>
+  </h2>
   <p>{{ card.game.kickoff_at|date:"D, M j, H:i T" }}</p>
   {% if card.line %}
     {% if card.line.home_spread is not None %}

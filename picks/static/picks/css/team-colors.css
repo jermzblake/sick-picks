@@ -1,0 +1,263 @@
+/* ==========================================
+   TEAM COLOR PALETTES (CSS VARIABLES)
+   Mapped by lowercase NFL abbreviation.
+   Hex values from published team brand colors.
+   ========================================== */
+
+/* Arizona Cardinals */
+.team-ari {
+  --primary-color: #97233f;
+  --secondary-color: #000000;
+  --text-on-primary: #ffffff;
+}
+
+/* Atlanta Falcons */
+.team-atl {
+  --primary-color: #a71930;
+  --secondary-color: #000000;
+  --text-on-primary: #ffffff;
+}
+
+/* Baltimore Ravens */
+.team-bal {
+  --primary-color: #241773;
+  --secondary-color: #9e7c0c;
+  --text-on-primary: #ffffff;
+}
+
+/* Buffalo Bills */
+.team-buf {
+  --primary-color: #00338d;
+  --secondary-color: #c60c30;
+  --text-on-primary: #ffffff;
+}
+
+/* Carolina Panthers */
+.team-car {
+  --primary-color: #0085ca;
+  --secondary-color: #101820;
+  --text-on-primary: #ffffff;
+}
+
+/* Chicago Bears */
+.team-chi {
+  --primary-color: #0b162a;
+  --secondary-color: #c83803;
+  --text-on-primary: #ffffff;
+}
+
+/* Cincinnati Bengals */
+.team-cin {
+  --primary-color: #fb4f14;
+  --secondary-color: #000000;
+  --text-on-primary: #ffffff;
+}
+
+/* Cleveland Browns */
+.team-cle {
+  --primary-color: #311d00;
+  --secondary-color: #ff3c00;
+  --text-on-primary: #ffffff;
+}
+
+/* Dallas Cowboys */
+.team-dal {
+  --primary-color: #003594;
+  --secondary-color: #869397;
+  --text-on-primary: #ffffff;
+}
+
+/* Denver Broncos */
+.team-den {
+  --primary-color: #fb4f14;
+  --secondary-color: #002244;
+  --text-on-primary: #ffffff;
+}
+
+/* Detroit Lions */
+.team-det {
+  --primary-color: #0076b6;
+  --secondary-color: #b0b7bc;
+  --text-on-primary: #ffffff;
+}
+
+/* Green Bay Packers */
+.team-gb {
+  --primary-color: #203731;
+  --secondary-color: #ffb612;
+  --text-on-primary: #ffffff;
+}
+
+/* Houston Texans */
+.team-hou {
+  --primary-color: #03202f;
+  --secondary-color: #a71930;
+  --text-on-primary: #ffffff;
+}
+
+/* Indianapolis Colts */
+.team-ind {
+  --primary-color: #002c5f;
+  --secondary-color: #ffffff;
+  --text-on-primary: #ffffff;
+}
+
+/* Jacksonville Jaguars */
+.team-jax {
+  --primary-color: #006778;
+  --secondary-color: #d7a22a;
+  --text-on-primary: #ffffff;
+}
+
+/* Kansas City Chiefs */
+.team-kc {
+  --primary-color: #e31837;
+  --secondary-color: #ffb81c;
+  --text-on-primary: #ffffff;
+}
+
+/* Las Vegas Raiders */
+.team-lv {
+  --primary-color: #a5acaf;
+  --secondary-color: #000000;
+  --text-on-primary: #000000;
+}
+
+/* Los Angeles Chargers */
+.team-lac {
+  --primary-color: #0080c6;
+  --secondary-color: #ffc20e;
+  --text-on-primary: #ffffff;
+}
+
+/* Los Angeles Rams */
+.team-lar {
+  --primary-color: #003594;
+  --secondary-color: #ffa300;
+  --text-on-primary: #ffffff;
+}
+
+/* Miami Dolphins */
+.team-mia {
+  --primary-color: #008e97;
+  --secondary-color: #fc4c02;
+  --text-on-primary: #ffffff;
+}
+
+/* Minnesota Vikings */
+.team-min {
+  --primary-color: #4f2683;
+  --secondary-color: #ffc62f;
+  --text-on-primary: #ffffff;
+}
+
+/* New England Patriots */
+.team-ne {
+  --primary-color: #002244;
+  --secondary-color: #c60c30;
+  --text-on-primary: #ffffff;
+}
+
+/* New Orleans Saints */
+.team-no {
+  --primary-color: #d3bc8d;
+  --secondary-color: #101820;
+  --text-on-primary: #101820;
+}
+
+/* New York Giants */
+.team-nyg {
+  --primary-color: #0b2265;
+  --secondary-color: #a71930;
+  --text-on-primary: #ffffff;
+}
+
+/* New York Jets */
+.team-nyj {
+  --primary-color: #125740;
+  --secondary-color: #ffffff;
+  --text-on-primary: #ffffff;
+}
+
+/* Philadelphia Eagles */
+.team-phi {
+  --primary-color: #004c54;
+  --secondary-color: #a5acaf;
+  --text-on-primary: #ffffff;
+}
+
+/* Pittsburgh Steelers */
+.team-pit {
+  --primary-color: #101820;
+  --secondary-color: #ffb612;
+  --text-on-primary: #ffffff;
+}
+
+/* San Francisco 49ers */
+.team-sf {
+  --primary-color: #aa0000;
+  --secondary-color: #b3995d;
+  --text-on-primary: #ffffff;
+}
+
+/* Seattle Seahawks */
+.team-sea {
+  --primary-color: #002244;
+  --secondary-color: #69be28;
+  --text-on-primary: #ffffff;
+}
+
+/* Tampa Bay Buccaneers */
+.team-tb {
+  --primary-color: #d50a0a;
+  --secondary-color: #34302b;
+  --text-on-primary: #ffffff;
+}
+
+/* Tennessee Titans */
+.team-ten {
+  --primary-color: #0c2340;
+  --secondary-color: #4b92db;
+  --text-on-primary: #ffffff;
+}
+
+/* Washington Commanders */
+.team-was {
+  --primary-color: #5a1414;
+  --secondary-color: #ffb612;
+  --text-on-primary: #ffffff;
+}
+
+/* ==========================================
+   MATCHUP UI UTILITIES
+   ========================================== */
+
+.matchup-card__heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  font-size: 1.25rem;
+}
+
+.matchup-card__team-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.team-badge {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background-color: var(--primary-color);
+  border: 2px solid var(--secondary-color);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  flex-shrink: 0;
+}
+
+.team-name {
+  font-weight: 700;
+  color: #1a1a1a;
+}
