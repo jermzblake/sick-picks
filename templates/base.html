@@ -5,6 +5,7 @@
   <title>{% block title %}Sick Picks{% endblock %}</title>
   {% load static %}
   <link rel="stylesheet" href="{% static 'picks/css/team-colors.css' %}">
+  <link rel="stylesheet" href="{% static 'picks/css/slate.css' %}">
   <script>
     (function () {
       var zone;
@@ -50,18 +51,22 @@
   </script>
 </head>
 <body>
-  <header>
-    <a href="{% url 'game-slate' %}">Games</a>
-    <a href="{% url 'pick-history' %}">Picks</a>
-    {% if user.is_authenticated %}
-      <form method="post" action="{% url 'logout' %}">
-        {% csrf_token %}
-        <button type="submit">Log out</button>
-      </form>
-    {% endif %}
+  <header class="site-header">
+    <div class="site-wrap site-header__inner">
+      <a href="{% url 'game-slate' %}">Games</a>
+      <a href="{% url 'pick-history' %}">Picks</a>
+      {% if user.is_authenticated %}
+        <form method="post" action="{% url 'logout' %}">
+          {% csrf_token %}
+          <button type="submit">Log out</button>
+        </form>
+      {% endif %}
+    </div>
   </header>
-  <main>
-    {% block content %}{% endblock %}
+  <main class="site-main">
+    <div class="site-wrap">
+      {% block content %}{% endblock %}
+    </div>
   </main>
 </body>
 </html>
