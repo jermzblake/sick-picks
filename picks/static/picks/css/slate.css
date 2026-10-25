@@ -1,0 +1,242 @@
+/* Page layout */
+body {
+  margin: 0;
+}
+
+.site-wrap {
+  max-width: 64rem;
+  margin-inline: auto;
+  padding-inline: 1.25rem;
+}
+
+.site-header {
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.site-header__inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1.25rem;
+  padding-block: 0.75rem;
+}
+
+.site-header__inner form {
+  margin: 0;
+  margin-left: auto;
+}
+
+.site-main {
+  padding-block: 1.25rem 2rem;
+}
+
+/* Slate table */
+.slate-nav {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.slate-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.slate-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 40rem;
+  font-size: 0.95rem;
+}
+
+.slate-table th {
+  text-align: left;
+  font-weight: 600;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 2px solid #d0d0d0;
+  color: #333;
+  white-space: nowrap;
+}
+
+.slate-table td {
+  padding: 0.75rem;
+  border-bottom: 1px solid #e5e5e5;
+  vertical-align: middle;
+}
+
+.slate-row--error {
+  background: #fff5f5;
+}
+
+.slate-matchup {
+  min-width: 9rem;
+}
+
+.slate-matchup__teams,
+.history-matchup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.slate-matchup__at {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #888;
+  line-height: 1;
+  padding-left: 0.35rem;
+}
+
+.slate-matchup__kickoff {
+  margin: 0.4rem 0 0;
+  font-size: 0.8rem;
+  color: #666;
+}
+
+.slate-error {
+  margin: 0.4rem 0 0;
+  font-size: 0.85rem;
+  color: #b00020;
+}
+
+.slate-empty {
+  color: #999;
+}
+
+.slate-market {
+  min-width: 6.5rem;
+}
+
+.slate-table th.slate-market,
+.slate-table td.slate-market {
+  text-align: center;
+}
+
+/* Odds buttons */
+.odds-form {
+  margin: 0;
+}
+
+.odds-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.odds-button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.1rem;
+  width: 100%;
+  min-height: 2.75rem;
+  box-sizing: border-box;
+  padding: 0.35rem 0.55rem;
+  border: 1px solid #c8c8c8;
+  border-radius: 4px;
+  background: #fafafa;
+  cursor: pointer;
+  font: inherit;
+  text-align: center;
+  line-height: 1.2;
+}
+
+.odds-button:hover {
+  background: #f0f0f0;
+  border-color: #999;
+}
+
+.odds-button:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+}
+
+.odds-button__line {
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.odds-button__price {
+  font-size: 0.85rem;
+  color: #444;
+  font-variant-numeric: tabular-nums;
+}
+
+.odds-button--selected {
+  background: #e8eef8;
+  border-color: #5b7db5;
+}
+
+.odds-button--locked {
+  cursor: default;
+  background: #e8f0e8;
+  border-color: #8fbc8f;
+  pointer-events: none;
+}
+
+.odds-button--locked .odds-button__line,
+.odds-button--locked .odds-button__price {
+  color: #1a3d1a;
+}
+
+/* History table */
+.history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.history-table th {
+  text-align: left;
+  font-weight: 600;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 2px solid #d0d0d0;
+  white-space: nowrap;
+}
+
+.history-table td {
+  padding: 0.65rem 0.75rem;
+  border-bottom: 1px solid #e5e5e5;
+  vertical-align: middle;
+}
+
+.history-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.result-chip {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: 3px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.result-chip--pending {
+  background: #f0f0f0;
+  color: #555;
+}
+
+.result-chip--win {
+  background: #d4edda;
+  color: #155724;
+}
+
+.result-chip--loss {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.result-chip--push {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.result-chip--void {
+  background: #e2e3e5;
+  color: #383d41;
+}
