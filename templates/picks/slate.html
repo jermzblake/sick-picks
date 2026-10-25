@@ -4,7 +4,7 @@
 
 {% block content %}
   <h1>Week {{ week }}</h1>
-  <p>
+  <p class="slate-nav">
     {% if week > 1 %}
       <a href="?week={{ week|add:'-1' }}">Previous week</a>
     {% endif %}
@@ -14,8 +14,23 @@
     <p>NFL season is not available.</p>
   {% elif not cards %}
     <p>No open games this week.</p>
+  {% else %}
+    <div class="slate-scroll">
+      <table class="slate-table">
+        <thead>
+          <tr>
+            <th scope="col">Matchup</th>
+            <th scope="col" class="slate-market">Spread</th>
+            <th scope="col" class="slate-market">Moneyline</th>
+            <th scope="col" class="slate-market">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for card in cards %}
+            {% include "picks/_game_card.html" with card=card %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   {% endif %}
-  {% for card in cards %}
-    {% include "picks/_game_card.html" with card=card %}
-  {% endfor %}
 {% endblock %}

@@ -1,69 +1,185 @@
-<article id="game-{{ card.game.id }}">
-  <h2 class="matchup-card__heading">
-    <span class="matchup-card__team-row team-{{ card.game.away_team.abbreviation|lower }}">
-      <span class="team-badge" aria-hidden="true"></span>
-      <span class="team-name">{{ card.game.away_team.abbreviation }}</span>
-    </span>
-    <span>at</span>
-    <span class="matchup-card__team-row team-{{ card.game.home_team.abbreviation|lower }}">
-      <span class="team-badge" aria-hidden="true"></span>
-      <span class="team-name">{{ card.game.home_team.abbreviation }}</span>
-    </span>
-  </h2>
-  <p>{{ card.game.kickoff_at|date:"D, M j, H:i T" }}</p>
-  {% if card.line %}
-    {% if card.line.home_spread is not None %}
-      <p>
-        Spread:
-        {{ card.game.away_team.abbreviation }} {{ card.line.away_spread }}
-        /
-        {{ card.game.home_team.abbreviation }} {{ card.line.home_spread }}
-      </p>
+{% load picks_extras %}
+<tr id="game-{{ card.game.id }}" class="slate-row{% if card.error %} slate-row--error{% endif %}">
+  <td class="slate-matchup">
+    <div class="slate-matchup__teams">
+      <span class="matchup-card__team-row team-{{ card.game.away_team.abbreviation|lower }}">
+        <span class="team-badge" aria-hidden="true"></span>
+        <span class="team-name">{{ card.game.away_team.abbreviation }}</span>
+      </span>
+      <span class="slate-matchup__at" aria-hidden="true">@</span>
+      <span class="matchup-card__team-row team-{{ card.game.home_team.abbreviation|lower }}">
+        <span class="team-badge" aria-hidden="true"></span>
+        <span class="team-name">{{ card.game.home_team.abbreviation }}</span>
+      </span>
+    </div>
+    <p class="slate-matchup__kickoff">{{ card.game.kickoff_at|date:"D, M j, H:i T" }}</p>
+    {% if card.error %}
+      <p class="slate-error">{{ card.error }}</p>
     {% endif %}
-    {% if card.line.home_moneyline is not None %}
-      <p>
-        Moneyline:
-        {{ card.game.away_team.abbreviation }} {{ card.line.away_moneyline }}
-        /
-        {{ card.game.home_team.abbreviation }} {{ card.line.home_moneyline }}
-      </p>
-    {% endif %}
-    {% if card.line.game_total is not None %}
-      <p>
-        Total: {{ card.line.game_total }}
-        Over {{ card.line.over_price }}
-        /
-        Under {{ card.line.under_price }}
-      </p>
-    {% endif %}
-  {% else %}
-    <p>No line</p>
-  {% endif %}
-  {% if card.error %}
-    <p>{{ card.error }}</p>
-  {% endif %}
-  {% for pick in card.picks %}
-    <p>
-      Submitted {{ pick.get_pick_type_display }}:
-      {% if pick.total_side %}{{ pick.get_total_side_display }}{% else %}{{ pick.picked_team.abbreviation }}{% endif %}
-      {% if pick.line_value is not None %}{{ pick.line_value }}{% endif %}
-      {% if pick.price is not None %}{{ pick.price }}{% endif %}
-    </p>
-  {% endfor %}
-  {% for form in card.forms %}
-    <form
-      method="post"
-      action="{% url 'submit-pick' card.game.id %}"
-      hx-post="{% url 'submit-pick' card.game.id %}"
-      hx-target="#game-{{ card.game.id }}"
-      hx-swap="outerHTML"
-    >
-      {% csrf_token %}
-      {% if 'picked_team' in form.fields %}{{ form.picked_team }}{% endif %}
-      {% if 'total_side' in form.fields %}{{ form.total_side }}{% endif %}
-      {{ form.pick_type }}
-      {{ form.game_line }}
-      <button type="submit">Submit {{ form.market_label }}</button>
-    </form>
-  {% endfor %}
-</article>
+  </td>
+
+  <td class="slate-market" data-market="spread">
+    {% with pick=card.picks_by_type.spread form=card.forms_by_market.spread %}
+      {% if pick %}
+        <div class="odds-stack">
+          <span class="odds-button odds-button--locked">
+            <span class="odds-button__line">
+              {{ pick.picked_team.abbreviation }}
+              {% if pick.line_value > 0 %}+{% endif %}{{ pick.line_value }}
+            </span>
+          </span>
+        </div>
+      {% elif form and card.line and card.line.home_spread is not None %}
+        <form
+          class="odds-form"
+          method="post"
+          action="{% url 'submit-pick' card.game.id %}"
+          hx-post="{% url 'submit-pick' card.game.id %}"
+          hx-target="#game-{{ card.game.id }}"
+          hx-swap="outerHTML"
+        >
+          {% csrf_token %}
+          {{ form.pick_type }}
+          {{ form.game_line }}
+          <div class="odds-stack">
+            <button
+              type="submit"
+              class="odds-button{% if form.picked_team.value == card.game.away_team_id %} odds-button--selected{% endif %}"
+              name="{{ form.prefix }}-picked_team"
+              value="{{ card.game.away_team_id }}"
+              {% if form.picked_team.value == card.game.away_team_id %}aria-pressed="true"{% endif %}
+            >
+              <span class="odds-button__line">
+                {% if card.line.away_spread > 0 %}+{% endif %}{{ card.line.away_spread }}
+              </span>
+              {% if card.line.away_spread_price is not None %}
+                <span class="odds-button__price">{{ card.line.away_spread_price|american }}</span>
+              {% endif %}
+            </button>
+            <button
+              type="submit"
+              class="odds-button{% if form.picked_team.value == card.game.home_team_id %} odds-button--selected{% endif %}"
+              name="{{ form.prefix }}-picked_team"
+              value="{{ card.game.home_team_id }}"
+              {% if form.picked_team.value == card.game.home_team_id %}aria-pressed="true"{% endif %}
+            >
+              <span class="odds-button__line">
+                {% if card.line.home_spread > 0 %}+{% endif %}{{ card.line.home_spread }}
+              </span>
+              {% if card.line.home_spread_price is not None %}
+                <span class="odds-button__price">{{ card.line.home_spread_price|american }}</span>
+              {% endif %}
+            </button>
+          </div>
+        </form>
+      {% else %}
+        <span class="slate-empty">—</span>
+      {% endif %}
+    {% endwith %}
+  </td>
+
+  <td class="slate-market" data-market="moneyline">
+    {% with pick=card.picks_by_type.moneyline form=card.forms_by_market.moneyline %}
+      {% if pick %}
+        <div class="odds-stack">
+          <span class="odds-button odds-button--locked">
+            <span class="odds-button__line">{{ pick.picked_team.abbreviation }}</span>
+            {% if pick.price is not None %}
+              <span class="odds-button__price">{{ pick.price|american }}</span>
+            {% endif %}
+          </span>
+        </div>
+      {% elif form and card.line and card.line.home_moneyline is not None %}
+        <form
+          class="odds-form"
+          method="post"
+          action="{% url 'submit-pick' card.game.id %}"
+          hx-post="{% url 'submit-pick' card.game.id %}"
+          hx-target="#game-{{ card.game.id }}"
+          hx-swap="outerHTML"
+        >
+          {% csrf_token %}
+          {{ form.pick_type }}
+          {{ form.game_line }}
+          <div class="odds-stack">
+            <button
+              type="submit"
+              class="odds-button{% if form.picked_team.value == card.game.away_team_id %} odds-button--selected{% endif %}"
+              name="{{ form.prefix }}-picked_team"
+              value="{{ card.game.away_team_id }}"
+              {% if form.picked_team.value == card.game.away_team_id %}aria-pressed="true"{% endif %}
+            >
+              <span class="odds-button__price">{{ card.line.away_moneyline|american }}</span>
+            </button>
+            <button
+              type="submit"
+              class="odds-button{% if form.picked_team.value == card.game.home_team_id %} odds-button--selected{% endif %}"
+              name="{{ form.prefix }}-picked_team"
+              value="{{ card.game.home_team_id }}"
+              {% if form.picked_team.value == card.game.home_team_id %}aria-pressed="true"{% endif %}
+            >
+              <span class="odds-button__price">{{ card.line.home_moneyline|american }}</span>
+            </button>
+          </div>
+        </form>
+      {% else %}
+        <span class="slate-empty">—</span>
+      {% endif %}
+    {% endwith %}
+  </td>
+
+  <td class="slate-market" data-market="total">
+    {% with pick=card.picks_by_type.total form=card.forms_by_market.total %}
+      {% if pick %}
+        <div class="odds-stack">
+          <span class="odds-button odds-button--locked">
+            <span class="odds-button__line">
+              {{ pick.get_total_side_display }} {{ pick.line_value }}
+            </span>
+          </span>
+        </div>
+      {% elif form and card.line and card.line.game_total is not None %}
+        <form
+          class="odds-form"
+          method="post"
+          action="{% url 'submit-pick' card.game.id %}"
+          hx-post="{% url 'submit-pick' card.game.id %}"
+          hx-target="#game-{{ card.game.id }}"
+          hx-swap="outerHTML"
+        >
+          {% csrf_token %}
+          {{ form.pick_type }}
+          {{ form.game_line }}
+          <div class="odds-stack">
+            <button
+              type="submit"
+              class="odds-button{% if form.total_side.value == 'over' %} odds-button--selected{% endif %}"
+              name="{{ form.prefix }}-total_side"
+              value="over"
+              {% if form.total_side.value == 'over' %}aria-pressed="true"{% endif %}
+            >
+              <span class="odds-button__line">O {{ card.line.game_total }}</span>
+              {% if card.line.over_price is not None %}
+                <span class="odds-button__price">{{ card.line.over_price|american }}</span>
+              {% endif %}
+            </button>
+            <button
+              type="submit"
+              class="odds-button{% if form.total_side.value == 'under' %} odds-button--selected{% endif %}"
+              name="{{ form.prefix }}-total_side"
+              value="under"
+              {% if form.total_side.value == 'under' %}aria-pressed="true"{% endif %}
+            >
+              <span class="odds-button__line">U {{ card.line.game_total }}</span>
+              {% if card.line.under_price is not None %}
+                <span class="odds-button__price">{{ card.line.under_price|american }}</span>
+              {% endif %}
+            </button>
+          </div>
+        </form>
+      {% else %}
+        <span class="slate-empty">—</span>
+      {% endif %}
+    {% endwith %}
+  </td>
+</tr>
