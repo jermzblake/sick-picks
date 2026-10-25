@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load picks_extras %}
 
 {% block title %}Picks — Sick Picks{% endblock %}
 
@@ -7,34 +8,67 @@
   {% if not picks %}
     <p>No picks yet.</p>
   {% else %}
-    <table>
-      <thead>
-        <tr>
-          <th>Game</th>
-          <th>Type</th>
-          <th>Pick</th>
-          <th>Terms</th>
-          <th>Submitted</th>
-          <th>Result</th>
-          <th>Points</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for pick in picks %}
+    <div class="slate-scroll">
+      <table class="history-table">
+        <thead>
           <tr>
-            <td>{{ pick.game.away_team.abbreviation }} at {{ pick.game.home_team.abbreviation }}</td>
-            <td>{{ pick.get_pick_type_display }}</td>
-            <td>{% if pick.total_side %}{{ pick.get_total_side_display }}{% else %}{{ pick.picked_team.abbreviation }}{% endif %}</td>
-            <td>
-              {% if pick.line_value is not None %}{{ pick.line_value }}{% endif %}
-              {% if pick.price is not None %}{{ pick.price }}{% endif %}
-            </td>
-            <td>{{ pick.submitted_at|date:"D, M j, H:i T" }}</td>
-            <td>{% if pick.result %}{{ pick.get_result_display }}{% else %}Pending{% endif %}</td>
-            <td>{% if pick.points is not None %}{{ pick.points }}{% endif %}</td>
+            <th>Game</th>
+            <th>Type</th>
+            <th>Pick</th>
+            <th>Terms</th>
+            <th>Submitted</th>
+            <th>Result</th>
+            <th>Points</th>
           </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {% for pick in picks %}
+            <tr>
+              <td>
+                <div class="history-matchup">
+                  <span class="matchup-card__team-row team-{{ pick.game.away_team.abbreviation|lower }}">
+                    <span class="team-badge" aria-hidden="true"></span>
+                    <span class="team-name">{{ pick.game.away_team.abbreviation }}</span>
+                  </span>
+                  <span class="slate-matchup__at" aria-hidden="true">@</span>
+                  <span class="matchup-card__team-row team-{{ pick.game.home_team.abbreviation|lower }}">
+                    <span class="team-badge" aria-hidden="true"></span>
+                    <span class="team-name">{{ pick.game.home_team.abbreviation }}</span>
+                  </span>
+                </div>
+              </td>
+              <td>{{ pick.get_pick_type_display }}</td>
+              <td>
+                {% if pick.total_side %}
+                  {{ pick.get_total_side_display }}
+                {% else %}
+                  <span class="history-pick team-{{ pick.picked_team.abbreviation|lower }}">
+                    <span class="team-badge" aria-hidden="true"></span>
+                    <span class="team-name">{{ pick.picked_team.abbreviation }}</span>
+                  </span>
+                {% endif %}
+              </td>
+              <td>
+                {% if pick.line_value is not None %}
+                  {% if pick.line_value > 0 %}+{% endif %}{{ pick.line_value }}
+                {% endif %}
+                {% if pick.price is not None %}
+                  {{ pick.price|american }}
+                {% endif %}
+              </td>
+              <td>{{ pick.submitted_at|date:"D, M j, H:i T" }}</td>
+              <td>
+                {% if pick.result %}
+                  <span class="result-chip result-chip--{{ pick.result }}">{{ pick.get_result_display }}</span>
+                {% else %}
+                  <span class="result-chip result-chip--pending">Pending</span>
+                {% endif %}
+              </td>
+              <td>{% if pick.points is not None %}{{ pick.points }}{% endif %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   {% endif %}
 {% endblock %}
