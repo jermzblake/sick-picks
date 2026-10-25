@@ -24,6 +24,8 @@ class GameCard:
     line: GameLine | None
     picks: list[Pick]
     forms: list[PickForm]
+    forms_by_market: dict[str, PickForm]
+    picks_by_type: dict[str, Pick]
     error: str | None = None
 
 
@@ -205,31 +207,36 @@ def _game_card(
     error: str | None = None,
     replacements: dict[str, PickForm] | None = None,
 ) -> GameCard:
+    forms_by_market = _forms_by_market(game, line, picks, replacements or {})
     return GameCard(
         game=game,
         line=line,
         picks=picks,
-        forms=_forms_for(game, line, picks, replacements or {}),
+        forms=list(forms_by_market.values()),
+        forms_by_market=forms_by_market,
+        picks_by_type={pick.pick_type: pick for pick in picks},
         error=error,
     )
 
 
-def _forms_for(
+def _forms_by_market(
     game: Game,
     line: GameLine | None,
     picks: list[Pick],
     replacements: dict[str, PickForm],
-) -> list[PickForm]:
+) -> dict[str, PickForm]:
     if line is None:
-        return []
+        return {}
     taken = {pick.pick_type for pick in picks}
-    forms = []
+    forms: dict[str, PickForm] = {}
     for market in _markets(line):
         if market in taken:
             continue
-        forms.append(
-            replacements.get(market)
-            or PickForm(game=game, pick_type=market, line=line, prefix=market)
+        forms[market] = replacements.get(market) or PickForm(
+            game=game,
+            pick_type=market,
+            line=line,
+            prefix=market,
         )
     return forms
 

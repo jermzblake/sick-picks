@@ -1,4 +1,3 @@
-import re
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
@@ -254,9 +253,11 @@ def test_htmx_submit_returns_the_locked_card_without_the_page(client, monkeypatc
     body = response.content.decode()
     assert response.status_code == 200
     assert 'Log out' not in body
-    assert 'Submitted Spread' in body
+    assert 'odds-button--locked' in body
+    assert '<tr id="game-' in body
     assert f'id="game-{game.id}"' in body
     assert '-3.5' in body
+    assert home.abbreviation in body
 
 
 def test_htmx_duplicate_pick_returns_422_and_keeps_one_pick(client, monkeypatch):
@@ -598,12 +599,12 @@ def test_slate_offers_over_under_only_when_the_line_has_a_total(client, monkeypa
 
     body = client.get(reverse('game-slate')).content.decode()
 
-    assert 'Total: 44.5' in body
-    assert 'Over 1.910' in body
-    assert 'Under 1.909' in body
+    assert 'O 44.5' in body
+    assert 'U 44.5' in body
     assert body.count('name="total-total_side"') == 2
     assert 'value="over"' in body
     assert 'value="under"' in body
+    assert '-110' in body
     assert 'MIA' in body
 
 
@@ -645,12 +646,13 @@ def test_htmx_total_submit_returns_the_locked_card(client, monkeypatch):
     body = response.content.decode()
     assert response.status_code == 200
     assert 'Log out' not in body
-    assert 'Submitted Total' in body
+    assert 'odds-button--locked' in body
     assert 'Over' in body
     assert '44.5' in body
     assert 'name="total-total_side"' not in body
     assert 'name="spread-picked_team"' in body
     assert home.abbreviation in body
+    assert '<tr id="game-' in body
 
 
 def test_spread_and_total_stay_open_until_each_is_submitted(client, monkeypatch):
@@ -682,7 +684,7 @@ def test_spread_and_total_stay_open_until_each_is_submitted(client, monkeypatch)
     )
     after_total = total.content.decode()
     assert total.status_code == 200
-    assert 'Submitted Total' in after_total
+    assert 'odds-button--locked' in after_total
     assert 'Under' in after_total
     assert 'name="total-total_side"' not in after_total
     assert Pick.objects.filter(game=game).count() == 2
@@ -776,7 +778,9 @@ def test_stale_total_keeps_the_selected_side(client, monkeypatch):
     assert 'current snapshot' in body
     assert '44.5' in body
     assert '41.0' not in body
-    assert re.search(r'value="under"[^>]*checked', body)
+    assert 'value="under"' in body
+    assert 'aria-pressed="true"' in body
+    assert 'odds-button--selected' in body
     assert Pick.objects.count() == 0
 
 
