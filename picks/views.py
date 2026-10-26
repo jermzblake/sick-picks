@@ -1,8 +1,10 @@
 from dataclasses import dataclass
+from decimal import Decimal
 
 from django import forms
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
+from django.db.models import Sum
 from django.http import HttpRequest, HttpResponse, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -16,6 +18,7 @@ from picks.models import Pick
 from picks.operations import UpcomingGame, submit_pick, upcoming_games, user_picks
 
 _MAX_WEEK = 32_767
+_VALID_MARKETS = {value for value, _label in CLIENT_MARKETS}
 
 
 @dataclass
@@ -111,10 +114,38 @@ def submit_game_pick(request: HttpRequest, game_id: int) -> HttpResponse:
 
 @login_required
 def pick_history(request: HttpRequest) -> HttpResponse:
+    now = timezone.now()
+    timeframe = _history_timeframe_from_request(request, now)
+    if isinstance(timeframe, HttpResponse):
+        return timeframe
+    season_view, week = timeframe
+    market = _market_from_request(request)
+    if isinstance(market, HttpResponse):
+        return market
+    season = _nfl_season(now)
+    picks = user_picks(request.user)
+    if season is None:
+        picks = picks.none()
+    else:
+        picks = picks.filter(game__season=season)
+        if not season_view:
+            picks = picks.filter(game__week=week)
+    if market is not None:
+        picks = picks.filter(pick_type=market)
+    points_total = picks.aggregate(total=Sum('points'))['total'] or Decimal('0')
     return render(
         request,
         'picks/history.html',
-        {'picks': user_picks(request.user)},
+        {
+            'picks': picks,
+            'week': week,
+            'current_week': week_for(now),
+            'season_view': season_view,
+            'season': season,
+            'market': market,
+            'markets': CLIENT_MARKETS,
+            'points_total': points_total,
+        },
     )
 
 
@@ -295,6 +326,27 @@ def _week_from_request(request: HttpRequest, now):
     if week < 1 or week > _MAX_WEEK:
         return HttpResponseBadRequest('Week must be a positive integer.')
     return week
+
+
+def _history_timeframe_from_request(request: HttpRequest, now):
+    raw = request.GET.get('week')
+    if raw == 'all':
+        return True, None
+    week = _week_from_request(request, now)
+    if isinstance(week, HttpResponse):
+        return week
+    return False, week
+
+
+def _market_from_request(request: HttpRequest):
+    raw = request.GET.get('market')
+    if raw is None or raw == '':
+        return None
+    if raw not in _VALID_MARKETS:
+        return HttpResponseBadRequest(
+            'Market must be spread, moneyline, or total.',
+        )
+    return raw
 
 
 def _posted_market(request: HttpRequest) -> str | None:

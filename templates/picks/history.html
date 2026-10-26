@@ -1,12 +1,43 @@
 {% extends "base.html" %}
 {% load picks_extras %}
 
-{% block title %}Picks — Sick Picks{% endblock %}
+{% block title %}{% if season_view %}Season{% else %}Week {{ week }}{% endif %}{% if market %} — {{ market|title }}{% endif %} — Sick Picks{% endblock %}
 
 {% block content %}
-  <h1>Picks</h1>
+  <h1>
+    {% if season_view %}Season{% else %}Week {{ week }}{% endif %}
+    {% if market %}
+      {% for value, label in markets %}
+        {% if value == market %} — {{ label }}{% endif %}
+      {% endfor %}
+    {% endif %}
+  </h1>
+  <p class="slate-nav">
+    {% if season_view %}
+      <a href="?week={{ current_week }}{% if market %}&amp;market={{ market }}{% endif %}">Current week</a>
+    {% else %}
+      {% if week > 1 %}
+        <a href="?week={{ week|add:'-1' }}{% if market %}&amp;market={{ market }}{% endif %}">Previous week</a>
+      {% endif %}
+      <a href="?week={{ week|add:'1' }}{% if market %}&amp;market={{ market }}{% endif %}">Next week</a>
+      <a href="?week=all{% if market %}&amp;market={{ market }}{% endif %}">Full season</a>
+    {% endif %}
+  </p>
+  <div class="history-toolbar">
+    <p class="slate-nav history-markets">
+      <a href="{% if season_view %}?week=all{% else %}?week={{ week }}{% endif %}"{% if not market %} aria-current="page"{% endif %}>All</a>
+      {% for value, label in markets %}
+        <a href="{% if season_view %}?week=all&amp;{% else %}?week={{ week }}&amp;{% endif %}market={{ value }}"{% if market == value %} aria-current="page"{% endif %}>{{ label }}</a>
+      {% endfor %}
+    </p>
+    <p class="history-total">Total: {{ points_total }}</p>
+  </div>
   {% if not picks %}
-    <p>No picks yet.</p>
+    {% if season_view %}
+      <p>No picks this season.</p>
+    {% else %}
+      <p>No picks this week.</p>
+    {% endif %}
   {% else %}
     <div class="slate-scroll">
       <table class="history-table">
