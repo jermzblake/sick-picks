@@ -99,6 +99,19 @@ def test_anonymous_requests_redirect_to_login(client):
     assert reverse('login') in response.url
 
 
+def test_home_redirects_anonymous_users_to_login(client):
+    response = client.get(reverse('home'))
+    assert response.status_code == 302
+    assert response.url == reverse('login')
+
+
+def test_home_redirects_authenticated_users_to_game_slate(client):
+    client.force_login(make_user())
+    response = client.get(reverse('home'))
+    assert response.status_code == 302
+    assert response.url == reverse('game-slate')
+
+
 def test_slate_shows_the_current_line_and_omits_started_games(client, monkeypatch):
     _freeze(monkeypatch)
     season = _season()

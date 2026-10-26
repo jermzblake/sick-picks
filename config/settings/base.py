@@ -83,4 +83,4 @@ LOGIN_URL = 'login'
 
 LOGIN_REDIRECT_URL = 'game-slate'
 
-LOGOUT_REDIRECT_URL = 'login'
+LOGOUT_REDIRECT_URL = 'home'
