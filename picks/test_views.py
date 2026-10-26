@@ -444,7 +444,8 @@ def test_unavailable_market_returns_422(client, monkeypatch):
     assert Pick.objects.count() == 0
 
 
-def test_history_shows_only_the_current_users_picks_and_status(client):
+def test_history_shows_only_the_current_users_picks_and_status(client, monkeypatch):
+    _freeze(monkeypatch)
     season = _season()
     game, home, away = _game(season, abbr='KC')
     away.abbreviation = 'BUF'
@@ -565,6 +566,7 @@ def test_a_total_pick_renders_its_side_on_the_slate_and_in_history(client, monke
 )
 def test_history_shows_a_graded_total(
     client,
+    monkeypatch,
     side,
     total,
     home_score,
@@ -572,6 +574,7 @@ def test_history_shows_a_graded_total(
     result,
     points,
 ):
+    _freeze(monkeypatch)
     season = _season()
     game, _home, _away = _game(season, abbr='KC')
     line = _total_line(game, game_total=total)
@@ -797,10 +800,250 @@ def test_stale_total_keeps_the_selected_side(client, monkeypatch):
     assert Pick.objects.count() == 0
 
 
-def test_history_is_empty_until_the_user_submits(client):
+def test_history_is_empty_until_the_user_submits(client, monkeypatch):
+    _freeze(monkeypatch)
+    _season()
     client.force_login(make_user())
 
     response = client.get(reverse('pick-history'))
 
     assert response.status_code == 200
-    assert b'No picks yet.' in response.content
+    assert b'No picks this week.' in response.content
+    assert b'Total: 0' in response.content
+
+
+def test_history_defaults_to_the_current_week(client, monkeypatch):
+    _freeze(monkeypatch)
+    season = _season()
+    current, current_home, _ = _game(season, abbr='CUR')
+    later, later_home, _ = _game(
+        season,
+        week=_WEEK + 1,
+        kickoff_at=_KICKOFF + timedelta(days=7),
+        abbr='NXT',
+    )
+    user = make_user()
+    submit_pick(
+        user=user,
+        game=current,
+        game_line=make_line(current, captured_at=_NOW - timedelta(hours=1)),
+        picked_team=current_home,
+        pick_type=Pick.PickType.SPREAD,
+        now=_NOW,
+    )
+    submit_pick(
+        user=user,
+        game=later,
+        game_line=make_line(later, captured_at=_NOW - timedelta(hours=1)),
+        picked_team=later_home,
+        pick_type=Pick.PickType.SPREAD,
+        now=_NOW,
+    )
+    client.force_login(user)
+
+    body = client.get(reverse('pick-history')).content.decode()
+
+    assert 'CUR' in body
+    assert 'NXT' not in body
+    assert f'Week {_WEEK}' in body
+
+
+def test_history_week_query_shows_that_weeks_picks_and_total(client, monkeypatch):
+    _freeze(monkeypatch)
+    season = _season()
+    current, current_home, _ = _game(season, abbr='CUR')
+    later, later_home, _ = _game(
+        season,
+        week=_WEEK + 1,
+        kickoff_at=_KICKOFF + timedelta(days=7),
+        abbr='NXT',
+    )
+    user = make_user()
+    for game, home in ((current, current_home), (later, later_home)):
+        submit_pick(
+            user=user,
+            game=game,
+            game_line=make_line(
+                game,
+                captured_at=_NOW - timedelta(hours=1),
+                home_spread=Decimal('-3.0'),
+                away_spread=Decimal('3.0'),
+            ),
+            picked_team=home,
+            pick_type=Pick.PickType.SPREAD,
+            now=_NOW,
+        )
+    later.status = 'final'
+    later.home_score = 30
+    later.away_score = 10
+    later.save(update_fields=['status', 'home_score', 'away_score'])
+    settle_game(later)
+    client.force_login(user)
+
+    body = client.get(
+        reverse('pick-history'),
+        {'week': _WEEK + 1},
+    ).content.decode()
+
+    assert 'NXT' in body
+    assert 'CUR' not in body
+    assert 'Total: 1.00' in body
+
+
+def test_history_full_season_shows_all_weeks_and_total(client, monkeypatch):
+    _freeze(monkeypatch)
+    season = _season()
+    week_a, home_a, _ = _game(season, abbr='WKA')
+    week_b, home_b, _ = _game(
+        season,
+        week=_WEEK + 1,
+        kickoff_at=_KICKOFF + timedelta(days=7),
+        abbr='WKB',
+    )
+    user = make_user()
+    for game, home in ((week_a, home_a), (week_b, home_b)):
+        submit_pick(
+            user=user,
+            game=game,
+            game_line=make_line(
+                game,
+                captured_at=_NOW - timedelta(hours=1),
+                home_spread=Decimal('-3.0'),
+                away_spread=Decimal('3.0'),
+            ),
+            picked_team=home,
+            pick_type=Pick.PickType.SPREAD,
+            now=_NOW,
+        )
+        game.status = 'final'
+        game.home_score = 30
+        game.away_score = 10
+        game.save(update_fields=['status', 'home_score', 'away_score'])
+        settle_game(game)
+    client.force_login(user)
+
+    body = client.get(reverse('pick-history'), {'week': 'all'}).content.decode()
+
+    assert 'WKA' in body
+    assert 'WKB' in body
+    assert 'Season' in body
+    assert 'Total: 2.00' in body
+    assert 'Current week' in body
+
+
+def test_history_market_filter_on_week_and_season(client, monkeypatch):
+    _freeze(monkeypatch)
+    season = _season()
+    game, home, _ = _game(season, abbr='KC')
+    later, later_home, _ = _game(
+        season,
+        week=_WEEK + 1,
+        kickoff_at=_KICKOFF + timedelta(days=7),
+        abbr='BUF',
+    )
+    user = make_user()
+    line = make_line(
+        game,
+        captured_at=_NOW - timedelta(hours=1),
+        home_spread=Decimal('-3.0'),
+        away_spread=Decimal('3.0'),
+        game_total=Decimal('44.5'),
+        over_price=Decimal('1.909'),
+        under_price=Decimal('1.909'),
+    )
+    submit_pick(
+        user=user,
+        game=game,
+        game_line=line,
+        picked_team=home,
+        pick_type=Pick.PickType.SPREAD,
+        now=_NOW,
+    )
+    submit_pick(
+        user=user,
+        game=game,
+        game_line=line,
+        pick_type=Pick.PickType.TOTAL,
+        total_side=Pick.TotalSide.OVER,
+        now=_NOW,
+    )
+    submit_pick(
+        user=user,
+        game=later,
+        game_line=make_line(
+            later,
+            captured_at=_NOW - timedelta(hours=1),
+            home_spread=Decimal('-3.0'),
+            away_spread=Decimal('3.0'),
+        ),
+        picked_team=later_home,
+        pick_type=Pick.PickType.SPREAD,
+        now=_NOW,
+    )
+    game.status = 'final'
+    game.home_score = 30
+    game.away_score = 20
+    game.save(update_fields=['status', 'home_score', 'away_score'])
+    settle_game(game)
+    later.status = 'final'
+    later.home_score = 30
+    later.away_score = 10
+    later.save(update_fields=['status', 'home_score', 'away_score'])
+    settle_game(later)
+    client.force_login(user)
+
+    week_spread = client.get(
+        reverse('pick-history'),
+        {'market': 'spread'},
+    ).content.decode()
+    week_total = client.get(
+        reverse('pick-history'),
+        {'market': 'total'},
+    ).content.decode()
+    season_spread = client.get(
+        reverse('pick-history'),
+        {'week': 'all', 'market': 'spread'},
+    ).content.decode()
+
+    assert 'Spread' in week_spread
+    assert 'Total: 1.00' in week_spread
+    assert 'Over' not in week_spread
+    assert 'BUF' not in week_spread
+    assert 'Over' in week_total
+    assert 'Total: 1.00' in week_total
+    assert 'KC' in season_spread
+    assert 'BUF' in season_spread
+    assert 'Total: 2.00' in season_spread
+    assert 'Over' not in season_spread
+
+
+@pytest.mark.parametrize('week', ['0', '-1', 'no', '1.5', '32768'])
+def test_history_rejects_invalid_week(client, monkeypatch, week):
+    _freeze(monkeypatch)
+    client.force_login(make_user())
+
+    response = client.get(reverse('pick-history'), {'week': week})
+
+    assert response.status_code == 400
+    assert b'positive integer' in response.content
+
+
+def test_history_rejects_invalid_market(client, monkeypatch):
+    _freeze(monkeypatch)
+    client.force_login(make_user())
+
+    response = client.get(reverse('pick-history'), {'market': 'props'})
+
+    assert response.status_code == 400
+    assert b'spread, moneyline, or total' in response.content
+
+
+def test_history_empty_season_message(client, monkeypatch):
+    _freeze(monkeypatch)
+    _season()
+    client.force_login(make_user())
+
+    response = client.get(reverse('pick-history'), {'week': 'all'})
+
+    assert response.status_code == 200
+    assert b'No picks this season.' in response.content
