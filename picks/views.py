@@ -29,6 +29,12 @@ class GameCard:
     error: str | None = None
 
 
+def home(request: HttpRequest) -> HttpResponse:
+    if request.user.is_authenticated:
+        return redirect('game-slate')
+    return redirect('login')
+
+
 @login_required
 def game_slate(request: HttpRequest) -> HttpResponse:
     now = timezone.now()
