@@ -60,11 +60,17 @@
                   <span class="matchup-card__team-row team-{{ pick.game.away_team.abbreviation|lower }}">
                     <span class="team-badge" aria-hidden="true"></span>
                     <span class="team-name">{{ pick.game.away_team.abbreviation }}</span>
+                    {% if pick.game.away_score is not None and pick.game.home_score is not None %}
+                      <span class="team-score{% if pick.game.status == 'final' and pick.game.away_score > pick.game.home_score %} team-score--winner{% endif %}">{{ pick.game.away_score }}</span>
+                    {% endif %}
                   </span>
                   <span class="slate-matchup__at" aria-hidden="true">@</span>
                   <span class="matchup-card__team-row team-{{ pick.game.home_team.abbreviation|lower }}">
                     <span class="team-badge" aria-hidden="true"></span>
                     <span class="team-name">{{ pick.game.home_team.abbreviation }}</span>
+                    {% if pick.game.away_score is not None and pick.game.home_score is not None %}
+                      <span class="team-score{% if pick.game.status == 'final' and pick.game.home_score > pick.game.away_score %} team-score--winner{% endif %}">{{ pick.game.home_score }}</span>
+                    {% endif %}
                   </span>
                 </div>
               </td>

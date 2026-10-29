@@ -488,6 +488,7 @@ def test_history_shows_only_the_current_users_picks_and_status(client, monkeypat
     assert 'KC' in pending_body
     assert 'other-person' not in pending_body
     assert 'SECRET' not in pending_body
+    assert 'team-score' not in pending_body
 
     game.status = 'final'
     game.home_score = 30
@@ -497,6 +498,10 @@ def test_history_shows_only_the_current_users_picks_and_status(client, monkeypat
     scored_body = client.get(reverse('pick-history')).content.decode()
     assert 'Win' in scored_body
     assert '1.00' in scored_body
+    assert '>10</span>' in scored_body
+    assert '>30</span>' in scored_body
+    assert 'team-score--winner">30</span>' in scored_body
+    assert 'team-score--winner">10</span>' not in scored_body
 
 
 def test_a_total_pick_renders_its_side_on_the_slate_and_in_history(client, monkeypatch):

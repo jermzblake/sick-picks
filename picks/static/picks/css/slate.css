@@ -2,10 +2,26 @@
   --color-green: #2c443b;
   --color-alabaster: #f2efe9;
   --color-gold: #ffb612;
-  --color-green-muted: color-mix(in srgb, var(--color-green) 55%, var(--color-alabaster));
-  --color-green-soft: color-mix(in srgb, var(--color-green) 12%, var(--color-alabaster));
-  --color-border: color-mix(in srgb, var(--color-green) 18%, var(--color-alabaster));
-  --color-border-strong: color-mix(in srgb, var(--color-green) 32%, var(--color-alabaster));
+  --color-green-muted: color-mix(
+    in srgb,
+    var(--color-green) 55%,
+    var(--color-alabaster)
+  );
+  --color-green-soft: color-mix(
+    in srgb,
+    var(--color-green) 12%,
+    var(--color-alabaster)
+  );
+  --color-border: color-mix(
+    in srgb,
+    var(--color-green) 18%,
+    var(--color-alabaster)
+  );
+  --color-border-strong: color-mix(
+    in srgb,
+    var(--color-green) 32%,
+    var(--color-alabaster)
+  );
   --font-display: "Barlow Condensed", "Arial Narrow", sans-serif;
   --font-body: "Source Sans 3", "Segoe UI", sans-serif;
 }
@@ -278,7 +294,7 @@ body.landing .site-main > .site-wrap {
   text-underline-offset: 0.2em;
 }
 
-.slate-nav a[aria-current='page'] {
+.slate-nav a[aria-current="page"] {
   color: var(--color-gold);
   text-decoration: underline;
   text-underline-offset: 0.2em;
@@ -345,6 +361,23 @@ body.landing .site-main > .site-wrap {
   display: flex;
   flex-direction: column;
   gap: 0.15rem;
+}
+
+.history-matchup .matchup-card__team-row {
+  display: flex;
+  width: 100%;
+}
+
+.history-matchup .team-score {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--color-green-muted);
+}
+
+.history-matchup .team-score--winner {
+  font-weight: 800;
+  color: var(--color-green);
 }
 
 .slate-matchup__at {
@@ -492,7 +525,11 @@ body.landing .site-main > .site-wrap {
 }
 
 .result-chip--win {
-  background: color-mix(in srgb, var(--color-green) 18%, var(--color-alabaster));
+  background: color-mix(
+    in srgb,
+    var(--color-green) 18%,
+    var(--color-alabaster)
+  );
   color: var(--color-green);
 }
 
