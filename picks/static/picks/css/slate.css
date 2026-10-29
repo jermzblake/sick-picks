@@ -68,9 +68,29 @@ body {
   text-underline-offset: 0.2em;
 }
 
+.site-header__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1.25rem;
+  margin-left: auto;
+}
+
+.site-header__actions a {
+  color: var(--color-green);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.site-header__actions a:hover {
+  color: color-mix(in srgb, var(--color-green) 70%, black);
+  text-decoration: underline;
+  text-decoration-color: var(--color-gold);
+  text-underline-offset: 0.2em;
+}
+
 .site-header__inner form {
   margin: 0;
-  margin-left: auto;
 }
 
 .site-header__inner button {

@@ -63,10 +63,15 @@
           <a href="{% url 'game-slate' %}">Games</a>
           <a href="{% url 'pick-history' %}">Picks</a>
         </nav>
-        <form method="post" action="{% url 'logout' %}">
-          {% csrf_token %}
-          <button type="submit">Log out</button>
-        </form>
+        <div class="site-header__actions">
+          {% if user.is_staff %}
+            <a href="{% url 'admin:index' %}">Admin</a>
+          {% endif %}
+          <form method="post" action="{% url 'logout' %}">
+            {% csrf_token %}
+            <button type="submit">Log out</button>
+          </form>
+        </div>
       {% endif %}
     </div>
   </header>
