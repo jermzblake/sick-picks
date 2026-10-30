@@ -19,14 +19,20 @@ ALLOWED_HOSTS = [
     for host in os.environ.get('ALLOWED_HOSTS', '').split(',')
     if host.strip()
 ]
-_render_hostname = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
-if _render_hostname and _render_hostname not in ALLOWED_HOSTS:
-    ALLOWED_HOSTS.append(_render_hostname)
+render_hostname = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
+if render_hostname and render_hostname not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(render_hostname)
 if not ALLOWED_HOSTS:
     raise ImproperlyConfigured(
         'ALLOWED_HOSTS is not set. Provide a comma-separated list or '
         'RENDER_EXTERNAL_HOSTNAME.'
     )
+
+CSRF_TRUSTED_ORIGINS = [
+    f'https://{host}'
+    for host in ALLOWED_HOSTS
+    if host not in ('localhost', '127.0.0.1') and not host.startswith(('.', '*'))
+]
 
 _database_url = os.environ.get('DATABASE_URL')
 if not _database_url:
@@ -41,14 +47,11 @@ DATABASES = {
 }
 DATABASES['default']['DISABLE_SERVER_SIDE_CURSORS'] = True
 
-
+# Render terminates TLS and forwards X-Forwarded-Proto to the app.
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 SECURE_SSL_REDIRECT = True
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
-CSRF_TRUSTED_ORIGINS = [
-    f'https://{host}' for host in ALLOWED_HOSTS if not host.startswith(('.', '*'))
-]
 
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STORAGES = {
