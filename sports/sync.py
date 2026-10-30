@@ -1,3 +1,4 @@
+import logging
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -15,6 +16,8 @@ from sports.providers.the_odds_api.normalize import (
 )
 from sports.providers.the_odds_api.weeks import season_year_for
 from sports.seed import NFL_ABBREVIATION, PLACEHOLDER_PREFIX
+
+logger = logging.getLogger(__name__)
 
 _ADMIN_STATUSES = frozenset(
     {
@@ -67,6 +70,11 @@ def run_nfl_sync(
     Omit both bounds to sync the current NFL week. Pass both to sync
     another half-open window.
     """
+    logger.info(
+        'nfl sync starting commence_from=%s commence_to=%s',
+        commence_from,
+        commence_to,
+    )
     payload = OddsApiClient(api_key).fetch(
         commence_time_from=commence_from,
         commence_time_to=commence_to,
@@ -74,20 +82,31 @@ def run_nfl_sync(
     event_problems: list[str] = []
 
     def remember(event_id: str, exc: MappingError) -> None:
+        logger.warning('nfl sync event mapping failed event_id=%s', event_id)
         event_problems.append(f'{event_id}: {exc}')
 
     slate = normalize(payload, on_event_error=remember)
     report = sync_slate(slate)
-    if not event_problems:
-        return report
-    return SyncReport(
-        games_created=report.games_created,
-        games_updated=report.games_updated,
-        games_unchanged=report.games_unchanged,
-        games_skipped=report.games_skipped,
-        lines_created=report.lines_created,
-        problems=tuple(event_problems) + report.problems,
+    if event_problems:
+        report = SyncReport(
+            games_created=report.games_created,
+            games_updated=report.games_updated,
+            games_unchanged=report.games_unchanged,
+            games_skipped=report.games_skipped,
+            lines_created=report.lines_created,
+            problems=tuple(event_problems) + report.problems,
+        )
+    logger.info(
+        'nfl sync finished games_created=%s games_updated=%s '
+        'games_unchanged=%s games_skipped=%s lines_created=%s problems=%s',
+        report.games_created,
+        report.games_updated,
+        report.games_unchanged,
+        report.games_skipped,
+        report.lines_created,
+        len(report.problems),
     )
+    return report
 
 
 @dataclass(frozen=True)
@@ -109,6 +128,7 @@ def sync_slate(slate: NormalizedSlate) -> SyncReport:
     if league is None:
         raise SyncError('NFL league is not seeded. Run seed_sports first.')
 
+    logger.info('sync_slate starting games=%s', len(slate.games))
     teams_by_id = {team.external_id: team for team in slate.teams}
     lines_by_game = {line.game_external_id: line for line in slate.lines}
     created = 0
@@ -129,11 +149,18 @@ def sync_slate(slate: NormalizedSlate) -> SyncReport:
             )
         except DatabaseError as exc:
             skipped += 1
-            problems.append(f'{game.external_id}: {exc}')
+            logger.warning(
+                'sync_slate database error external_id=%s error_type=%s',
+                game.external_id,
+                type(exc).__name__,
+                exc_info=True,
+            )
+            problems.append(f'{game.external_id}: database error')
             continue
         if outcome.skipped:
             skipped += 1
             if outcome.problem:
+                logger.warning('sync_slate skipped %s', outcome.problem)
                 problems.append(outcome.problem)
             continue
         if outcome.created:
@@ -144,7 +171,7 @@ def sync_slate(slate: NormalizedSlate) -> SyncReport:
             unchanged += 1
         lines_created += outcome.lines_created
 
-    return SyncReport(
+    report = SyncReport(
         games_created=created,
         games_updated=updated,
         games_unchanged=unchanged,
@@ -152,6 +179,17 @@ def sync_slate(slate: NormalizedSlate) -> SyncReport:
         lines_created=lines_created,
         problems=tuple(problems),
     )
+    logger.info(
+        'sync_slate finished games_created=%s games_updated=%s '
+        'games_unchanged=%s games_skipped=%s lines_created=%s problems=%s',
+        report.games_created,
+        report.games_updated,
+        report.games_unchanged,
+        report.games_skipped,
+        report.lines_created,
+        len(report.problems),
+    )
+    return report
 
 
 def _sync_game(

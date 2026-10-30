@@ -1,3 +1,4 @@
+import logging
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
@@ -11,6 +12,8 @@ from sports.providers.the_odds_api.weeks import week_window
 
 from picks.domain import market_terms, settle_pick
 from picks.models import Pick
+
+logger = logging.getLogger(__name__)
 
 _OPEN_FOR_PICKS = {
     Game.Status.SCHEDULED,
@@ -133,6 +136,11 @@ def settle_window(
     reported and the rest of the window still settles.
     """
     start, end = _kickoff_window(kickoff_from, kickoff_to, now)
+    logger.info(
+        'settle_window starting kickoff_from=%s kickoff_to=%s',
+        start,
+        end,
+    )
     games = (
         Game.objects.filter(
             status__in=_SETTLEABLE,
@@ -148,10 +156,21 @@ def settle_window(
         try:
             settle_game(game)
         except ValidationError as exc:
+            logger.warning(
+                'settle_window game failed game_id=%s reason=%s',
+                game.pk,
+                ' '.join(exc.messages),
+            )
             problems.append(f'{game}: {" ".join(exc.messages)}')
         else:
             settled += 1
-    return SettleReport(settled, tuple(problems))
+    report = SettleReport(settled, tuple(problems))
+    logger.info(
+        'settle_window finished settled=%s problems=%s',
+        report.settled,
+        len(report.problems),
+    )
+    return report
 
 
 def settle_game(game: Game) -> list[Pick]:
@@ -159,6 +178,12 @@ def settle_game(game: Game) -> list[Pick]:
         locked_game = Game.objects.select_for_update().get(pk=game.pk)
         picks = list(locked_game.picks.select_for_update().order_by('id'))
         if locked_game.status not in (Game.Status.FINAL, Game.Status.CANCELLED):
+            logger.info(
+                'settle_game skipped game_id=%s status=%s pick_count=%s',
+                locked_game.pk,
+                locked_game.status,
+                len(picks),
+            )
             return picks
         if locked_game.status == Game.Status.FINAL and (
             locked_game.home_score is None or locked_game.away_score is None
@@ -166,6 +191,12 @@ def settle_game(game: Game) -> list[Pick]:
             raise ValidationError('Final game is missing a score.')
         for pick in picks:
             settle_pick(pick, game=locked_game)
+        logger.info(
+            'settle_game finished game_id=%s status=%s pick_count=%s',
+            locked_game.pk,
+            locked_game.status,
+            len(picks),
+        )
         return picks
 
 

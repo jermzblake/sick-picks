@@ -1,3 +1,4 @@
+import logging
 import os
 from datetime import datetime
 
@@ -12,6 +13,8 @@ from sports.models import Game, GameLine, League, Season, Team
 from sports.providers.the_odds_api.client import OddsApiError
 from sports.providers.the_odds_api.normalize import MappingError
 from sports.sync import SyncError, SyncReport, run_nfl_sync
+
+logger = logging.getLogger(__name__)
 
 _SETTLEABLE = {Game.Status.FINAL, Game.Status.CANCELLED}
 _DATETIME_EXAMPLE = '2026-10-13 07:00:00'
@@ -99,8 +102,18 @@ def _settle_and_report(request, game: Game) -> None:
     try:
         settle_game(game)
     except ValidationError as exc:
+        logger.warning(
+            'admin settle_game failed admin_user_id=%s game_id=%s',
+            request.user.pk,
+            game.pk,
+        )
         messages.error(request, f'{game}: {" ".join(exc.messages)}')
     else:
+        logger.info(
+            'admin settle_game complete admin_user_id=%s game_id=%s',
+            request.user.pk,
+            game.pk,
+        )
         messages.success(request, f'{game}: settled')
 
 
@@ -188,8 +201,25 @@ class GameAdmin(admin.ModelAdmin):
                     commence_to=commence_to,
                 )
             except (ValueError, OddsApiError, MappingError, SyncError) as exc:
+                logger.error(
+                    'admin sync_nfl_data failed admin_user_id=%s error_type=%s',
+                    request.user.pk,
+                    type(exc).__name__,
+                )
                 messages.error(request, str(exc))
             else:
+                logger.info(
+                    'admin sync_nfl_data complete admin_user_id=%s '
+                    'games_created=%s games_updated=%s games_unchanged=%s '
+                    'games_skipped=%s lines_created=%s problems=%s',
+                    request.user.pk,
+                    report.games_created,
+                    report.games_updated,
+                    report.games_unchanged,
+                    report.games_skipped,
+                    report.lines_created,
+                    len(report.problems),
+                )
                 messages.success(request, _sync_summary(report))
                 for problem in report.problems:
                     messages.warning(request, problem)
@@ -218,8 +248,20 @@ class GameAdmin(admin.ModelAdmin):
                     kickoff_to=kickoff_to,
                 )
             except ValueError as exc:
+                logger.error(
+                    'admin settle_games failed admin_user_id=%s error_type=%s',
+                    request.user.pk,
+                    type(exc).__name__,
+                )
                 messages.error(request, str(exc))
             else:
+                logger.info(
+                    'admin settle_games complete admin_user_id=%s '
+                    'settled=%s problems=%s',
+                    request.user.pk,
+                    report.settled,
+                    len(report.problems),
+                )
                 messages.success(request, _settle_summary(report))
                 for problem in report.problems:
                     messages.error(request, problem)

@@ -1,8 +1,11 @@
+import logging
 from datetime import datetime
 
 from django.core.management.base import BaseCommand, CommandError
 
 from picks.operations import settle_window
+
+logger = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):
@@ -29,8 +32,14 @@ class Command(BaseCommand):
                 kickoff_to=_timezone_aware(options['kickoff_to']),
             )
         except ValueError as exc:
+            logger.error('settle_games failed: %s', type(exc).__name__)
             raise CommandError(str(exc)) from exc
 
+        logger.info(
+            'settle_games complete settled=%s problems=%s',
+            report.settled,
+            len(report.problems),
+        )
         self.stdout.write(f'Settled: {report.settled}')
         if report.problems:
             self.stdout.write('Problems:')

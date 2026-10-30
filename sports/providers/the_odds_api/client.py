@@ -1,4 +1,5 @@
 import json
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -9,6 +10,8 @@ from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 from sports.providers.the_odds_api.weeks import week_window
+
+logger = logging.getLogger(__name__)
 
 BASE_URL = 'https://api.the-odds-api.com'
 SPORT_KEY = 'americanfootball_nfl'
@@ -104,13 +107,25 @@ class OddsApiClient:
             query.update(params)
         status, body = self._transport(f'{self._base_url}{path}', query)
         if status != 200:
+            logger.warning('odds api request failed path=%s status=%s', path, status)
             raise OddsApiError(status)
         try:
             payload = json.loads(body, parse_float=Decimal)
         except json.JSONDecodeError as exc:
+            logger.warning(
+                'odds api invalid json path=%s status=%s',
+                path,
+                status,
+            )
             raise OddsApiError(status) from exc
         if not isinstance(payload, list):
+            logger.warning(
+                'odds api unexpected payload path=%s status=%s',
+                path,
+                status,
+            )
             raise OddsApiError(status)
+        logger.info('odds api request ok path=%s status=%s', path, status)
         return payload
 
 
