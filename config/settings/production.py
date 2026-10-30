@@ -36,9 +36,11 @@ DATABASES = {
     'default': dj_database_url.parse(
         _database_url,
         conn_max_age=0,
-        conn_health_checks=False,
+        conn_health_checks=True,
     ),
 }
+DATABASES['default']['DISABLE_SERVER_SIDE_CURSORS'] = True
+
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 SECURE_SSL_REDIRECT = True
