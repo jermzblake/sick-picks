@@ -1,3 +1,4 @@
+import logging
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from io import StringIO
@@ -585,7 +586,7 @@ def _spread(game, team):
     )
 
 
-def test_settle_window_grades_final_games_in_the_current_week():
+def test_settle_window_grades_final_games_in_the_current_week(caplog):
     start, end = week_window(_NOW)
     opening, opening_home, _opening_away = _matchup(kickoff_at=start)
     closing, closing_home, _closing_away = _matchup(
@@ -601,7 +602,8 @@ def test_settle_window_grades_final_games_in_the_current_week():
     _finish(closing, status='final', home_score=30, away_score=10)
     _finish(outside, status='final', home_score=30, away_score=10)
 
-    report = settle_window(now=_NOW)
+    with caplog.at_level(logging.INFO, logger='picks.operations'):
+        report = settle_window(now=_NOW)
 
     assert report == SettleReport(2, ())
     for pick in (opening_pick, closing_pick):
@@ -611,6 +613,11 @@ def test_settle_window_grades_final_games_in_the_current_week():
     scheduled_pick.refresh_from_db()
     assert outside_pick.result is None
     assert scheduled_pick.result is None
+    assert any('settle_window starting' in record.message for record in caplog.records)
+    assert any(
+        'settle_window finished settled=2' in record.message
+        for record in caplog.records
+    )
 
 
 def test_settle_window_uses_an_explicit_kickoff_window():
@@ -638,7 +645,9 @@ def test_settle_window_uses_an_explicit_kickoff_window():
     assert outside_pick.result is None
 
 
-def test_settle_window_voids_a_cancelled_game_and_keeps_going_after_a_missing_score():
+def test_settle_window_voids_a_cancelled_game_and_keeps_going_after_a_missing_score(
+    caplog,
+):
     cancelled, cancelled_home, _cancelled_away = _matchup()
     unscored, unscored_home, _unscored_away = _matchup(
         kickoff_at=_KICKOFF + timedelta(hours=1)
@@ -653,7 +662,8 @@ def test_settle_window_voids_a_cancelled_game_and_keeps_going_after_a_missing_sc
     _finish(unscored, status='final')
     _finish(scored, status='final', home_score=30, away_score=10)
 
-    report = settle_window(now=_NOW)
+    with caplog.at_level(logging.WARNING, logger='picks.operations'):
+        report = settle_window(now=_NOW)
 
     assert report.settled == 2
     assert len(report.problems) == 1
@@ -664,6 +674,11 @@ def test_settle_window_voids_a_cancelled_game_and_keeps_going_after_a_missing_sc
     assert cancelled_pick.result == Pick.Result.VOID
     assert unscored_pick.result is None
     assert scored_pick.result == Pick.Result.WIN
+    assert any(
+        'settle_window game failed' in record.message
+        and f'game_id={unscored.pk}' in record.message
+        for record in caplog.records
+    )
 
 
 def test_settle_window_is_stable_when_run_twice():

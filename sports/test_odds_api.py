@@ -1,4 +1,5 @@
 import json
+import logging
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
@@ -316,6 +317,28 @@ def test_urllib_transport_closes_http_errors(monkeypatch):
     client = OddsApiClient('test-key', transport=lambda url, params: (200, b'[1]'))
     with pytest.raises(OddsApiError):
         client.fetch(now=WINDOW_START)
+
+
+def test_client_logs_path_and_status_without_the_api_key(caplog):
+    secret = 'super-secret-odds-key'
+
+    def transport(url, params):
+        assert params['apiKey'] == secret
+        return 401, b''
+
+    client = OddsApiClient(secret, transport=transport)
+    with (
+        caplog.at_level(logging.WARNING, logger='sports.providers.the_odds_api.client'),
+        pytest.raises(OddsApiError),
+    ):
+        client.fetch(now=WINDOW_START)
+
+    messages = ' '.join(record.message for record in caplog.records)
+    assert 'odds api request failed' in messages
+    assert '/v4/sports/' in messages
+    assert 'status=401' in messages
+    assert secret not in messages
+    assert 'apiKey' not in messages
 
 
 def test_client_keeps_decimal_prices_exact():

@@ -1,3 +1,4 @@
+import logging
 import os
 from datetime import datetime
 
@@ -6,6 +7,8 @@ from django.core.management.base import BaseCommand, CommandError
 from sports.providers.the_odds_api.client import OddsApiError
 from sports.providers.the_odds_api.normalize import MappingError
 from sports.sync import SyncError, run_nfl_sync
+
+logger = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):
@@ -33,8 +36,19 @@ class Command(BaseCommand):
                 commence_to=_timezone_aware(options['commence_to']),
             )
         except (ValueError, OddsApiError, MappingError, SyncError) as exc:
+            logger.error('sync_nfl_data failed: %s', type(exc).__name__)
             raise CommandError(str(exc)) from exc
 
+        logger.info(
+            'sync_nfl_data complete games_created=%s games_updated=%s '
+            'games_unchanged=%s games_skipped=%s lines_created=%s problems=%s',
+            report.games_created,
+            report.games_updated,
+            report.games_unchanged,
+            report.games_skipped,
+            report.lines_created,
+            len(report.problems),
+        )
         self.stdout.write(f'Games created: {report.games_created}')
         self.stdout.write(f'Games updated: {report.games_updated}')
         self.stdout.write(f'Games unchanged: {report.games_unchanged}')

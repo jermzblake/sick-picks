@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: sick-picks
+    runtime: python
+    plan: free
+    region: oregon
+    branch: main
+    rootDir: .
+    buildCommand: ./build.sh
+    startCommand: >
+      uv run --no-sync gunicorn config.wsgi:application
+      --bind 0.0.0.0:$PORT
+      --workers 1
+      --threads 2
+      --timeout 60
+    healthCheckPath: /health/
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.14"
+      - key: DJANGO_SETTINGS_MODULE
+        value: config.settings.production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: "False"
+      - key: DATABASE_URL
+        sync: false
+      - key: ODDS_API_KEY
+        sync: false

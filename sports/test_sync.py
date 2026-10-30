@@ -1,11 +1,13 @@
+import logging
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from io import StringIO
+from unittest.mock import patch
 
 import pytest
 from django.core.management import call_command
 from django.core.management.base import CommandError
-from django.db import connection
+from django.db import DatabaseError, connection
 from django.test.utils import CaptureQueriesContext
 from picks.operations import submit_pick
 from tests.builders import make_league, make_season, make_team, make_user
@@ -18,7 +20,7 @@ from sports.providers.the_odds_api.normalize import (
     normalize,
 )
 from sports.seed import seed_sports
-from sports.sync import SyncError, sync_slate
+from sports.sync import SyncError, _sync_game, sync_slate
 from sports.test_odds_api import (
     AWAY,
     AWAY_ID,
@@ -331,7 +333,7 @@ def test_a_bad_event_does_not_roll_back_a_good_game():
     assert Game.objects.filter(external_id='game-2').count() == 0
 
 
-def test_a_database_failure_on_one_game_keeps_the_other():
+def test_a_database_failure_on_one_game_keeps_the_other(caplog):
     seed_sports('NFL', 2026)
     good = _slate(odds=[_line_event()])
     bad = NormalizedGame(
@@ -350,13 +352,27 @@ def test_a_database_failure_on_one_game_keeps_the_other():
         lines=good.lines,
     )
 
-    report = sync_slate(slate)
+    def _sync_game_or_fail(league, game, *args, **kwargs):
+        if game.external_id == 'bad-game':
+            raise DatabaseError('connection detail must not leak')
+        return _sync_game(league, game, *args, **kwargs)
+
+    with (
+        patch('sports.sync._sync_game', side_effect=_sync_game_or_fail),
+        caplog.at_level(logging.WARNING, logger='sports.sync'),
+    ):
+        report = sync_slate(slate)
 
     assert report.games_created == 1
     assert report.games_skipped == 1
     assert Game.objects.filter(external_id=GAME_ID).exists()
     assert not Game.objects.filter(external_id='bad-game').exists()
-    assert any(problem.startswith('bad-game:') for problem in report.problems)
+    assert report.problems == ('bad-game: database error',)
+    assert 'connection detail must not leak' not in ' '.join(report.problems)
+    assert any(
+        'sync_slate database error' in record.message and 'bad-game' in record.message
+        for record in caplog.records
+    )
 
 
 def test_a_game_without_a_line_keeps_the_line_it_already_has():

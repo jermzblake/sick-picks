@@ -1,8 +1,69 @@
 """Settings shared by every environment."""
 
+import os
+import sys
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
+
+LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO').upper()
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'filters': {
+        'redact_secrets': {
+            '()': 'config.logging.RedactSecretsFilter',
+        },
+    },
+    'formatters': {
+        'console': {
+            '()': 'config.logging.RedactSecretsFormatter',
+            'format': '{asctime} {levelname} {name} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'stream': sys.stdout,
+            'filters': ['redact_secrets'],
+            'formatter': 'console',
+            'level': LOG_LEVEL,
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': LOG_LEVEL,
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'django.request': {
+            'handlers': ['console'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+        'django.db': {
+            'handlers': ['console'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+        'sports': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'picks': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+    },
+}
 
 INSTALLED_APPS = [
     'accounts',
@@ -19,6 +80,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'config.middleware.TimezoneMiddleware',
     'django.middleware.common.CommonMiddleware',
