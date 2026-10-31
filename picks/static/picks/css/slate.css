@@ -129,6 +129,20 @@ body {
   padding-block: 1.25rem 2rem;
 }
 
+.site-footer {
+  border-top: 1px solid var(--color-border);
+  padding-block: 1rem 1.5rem;
+}
+
+.site-footer__disclaimer {
+  margin: 0 auto;
+  max-width: 42rem;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--color-green-muted);
+  text-align: center;
+}
+
 /* Landing login */
 body.landing .site-header {
   border-bottom-color: transparent;
@@ -136,10 +150,14 @@ body.landing .site-header {
 }
 
 body.landing .site-main {
-  min-height: calc(100vh - 4rem);
+  min-height: calc(100vh - 8rem);
   display: flex;
   align-items: center;
   padding-block: 2rem 3rem;
+}
+
+body.landing .site-footer {
+  border-top-color: transparent;
 }
 
 body.landing .site-main > .site-wrap {
