@@ -1,0 +1,42 @@
+name: NFL sync and settle
+
+on:
+  schedule:
+    # ~09:14 / ~19:14 America/New_York (EDT); one hour earlier in EST.
+    # Minute 14 avoids GitHub Actions top-of-hour congestion.
+    - cron: '14 13 * * *'
+    - cron: '14 23 * * *'
+  workflow_dispatch:
+
+jobs:
+  sync-and-settle:
+    if: ${{ github.event_name == 'workflow_dispatch' || vars.NFL_SYNC_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    env:
+      DJANGO_SETTINGS_MODULE: config.settings.production
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      SECRET_KEY: ${{ secrets.SECRET_KEY }}
+      ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+      ALLOWED_HOSTS: ${{ secrets.ALLOWED_HOSTS }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v10.1.0
+        with:
+          python-version: '3.14'
+          enable-cache: true
+      - run: uv sync --locked
+      - id: sync
+        name: Sync NFL data
+        continue-on-error: true
+        run: uv run python manage.py sync_nfl_data
+      - id: settle
+        name: Settle games
+        continue-on-error: true
+        run: uv run python manage.py settle_games
+      - name: Report failures
+        if: always()
+        run: |
+          echo "sync=${{ steps.sync.outcome }} settle=${{ steps.settle.outcome }}"
+          if [ "${{ steps.sync.outcome }}" != "success" ] || [ "${{ steps.settle.outcome }}" != "success" ]; then
+            exit 1
+          fi

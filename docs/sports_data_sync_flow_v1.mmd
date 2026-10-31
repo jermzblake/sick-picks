@@ -1,0 +1,45 @@
+flowchart TD
+    Start["GitHub Actions<br/>~09:14 / ~19:14 ET"]
+
+    SyncCmd["manage.py sync_nfl_data"]
+    SettleCmd["manage.py settle_games"]
+    Report["Report failures"]
+
+    Sync["run_nfl_sync"]
+
+    API["The Odds API"]
+
+    Normalize["Normalize Provider Data"]
+
+    Games["Upsert Games"]
+    Lines["Create GameLine snapshots"]
+    Scores["Update Scores + Status"]
+
+    Settle["settle_window"]
+    Picks["Update completed Picks"]
+
+    DB[("Neon PostgreSQL")]
+
+    Done["Job Complete"]
+
+    Start --> SyncCmd
+    SyncCmd --> Sync
+    Sync --> API
+    API --> Normalize
+
+    Normalize --> Games
+    Normalize --> Lines
+    Normalize --> Scores
+
+    Games --> DB
+    Lines --> DB
+    Scores --> DB
+
+    SyncCmd --> SettleCmd
+    SettleCmd --> Settle
+    DB --> Settle
+    Settle --> Picks
+    Picks --> DB
+
+    SettleCmd --> Report
+    Report --> Done

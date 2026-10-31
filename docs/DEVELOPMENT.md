@@ -66,11 +66,11 @@ make ci
 
 ## NFL data
 
-Seed the league/teams, sync games and lines, and settle picks with the commands in [nfl-data-sync.md](nfl-data-sync.md). Set `ODDS_API_KEY` in `.env` before syncing.
+Seed the league/teams, sync games and lines, and settle picks with the commands in [nfl-data-sync_v1.md](nfl-data-sync_v1.md). Set `ODDS_API_KEY` in `.env` before syncing.
 
 ## Further reading
 
 - [DOMAIN.md](DOMAIN.md) — product scope, entities, scoring, lifecycles
 - [model-design.md](model-design.md) — models and constraints
 - [odds-api-mapping.md](odds-api-mapping.md) — The Odds API → domain mapping
-- [infrasturcture_architecture_v0.mmd](infrasturcture_architecture_v0.mmd) — deployment topology
+- [infrasturcture_architecture_v1.mmd](infrasturcture_architecture_v1.mmd) — deployment topology (current); [v0](infrasturcture_architecture_v0.mmd) is historical
