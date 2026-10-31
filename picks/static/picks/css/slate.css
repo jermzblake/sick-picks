@@ -29,6 +29,9 @@
 /* Page layout */
 body {
   margin: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
   background: var(--color-alabaster);
   color: var(--color-green);
   font-family: var(--font-body);
@@ -126,12 +129,21 @@ body {
 }
 
 .site-main {
+  flex: 1 0 auto;
   padding-block: 1.25rem 2rem;
 }
 
 .site-footer {
+  flex-shrink: 0;
+  height: 12vh;
+  min-height: 4.75rem;
+  display: flex;
+  align-items: center;
   border-top: 1px solid var(--color-border);
-  padding-block: 1rem 1.5rem;
+}
+
+.site-footer > .site-wrap {
+  width: 100%;
 }
 
 .site-footer__disclaimer {
@@ -150,7 +162,6 @@ body.landing .site-header {
 }
 
 body.landing .site-main {
-  min-height: calc(100vh - 8rem);
   display: flex;
   align-items: center;
   padding-block: 2rem 3rem;
@@ -374,6 +385,34 @@ body.landing .site-main > .site-wrap {
   min-width: 9rem;
 }
 
+.history-game {
+  min-width: 9rem;
+}
+
+@media (max-width: 48rem) {
+  .slate-table thead th:first-child,
+  .slate-table td.slate-matchup,
+  .history-table thead th.history-game,
+  .history-table td.history-game {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: var(--color-alabaster);
+    box-shadow: 1px 0 0 var(--color-border);
+    min-width: 6.5rem;
+    padding-inline: 0.5rem;
+  }
+
+  .slate-table thead th:first-child,
+  .history-table thead th.history-game {
+    z-index: 2;
+  }
+
+  .slate-row--error .slate-matchup {
+    background: #fff5f5;
+  }
+}
+
 .slate-matchup__teams,
 .history-matchup {
   display: flex;
@@ -504,6 +543,7 @@ body.landing .site-main > .site-wrap {
 .history-table {
   width: 100%;
   border-collapse: collapse;
+  min-width: 40rem;
   font-size: 0.95rem;
 }
 

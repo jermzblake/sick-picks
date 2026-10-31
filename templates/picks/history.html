@@ -43,7 +43,7 @@
       <table class="history-table">
         <thead>
           <tr>
-            <th>Game</th>
+            <th class="history-game">Game</th>
             <th>Type</th>
             <th>Pick</th>
             <th>Terms</th>
@@ -55,7 +55,7 @@
         <tbody>
           {% for pick in picks %}
             <tr>
-              <td>
+              <td class="history-game">
                 <div class="history-matchup">
                   <span class="matchup-card__team-row team-{{ pick.game.away_team.abbreviation|lower }}">
                     <span class="team-badge" aria-hidden="true"></span>
