@@ -1,6 +1,6 @@
 # Sick Picks
 
-Weekly NFL picks before kickoff — spread, moneyline, or total — graded from live odds and scores.
+Make weekly NFL picks on the spread, moneyline, or total before kickoff. Each pick locks that line, and track wins, losses, pushes, and points after the games finish.
 
 ## Demo
 
@@ -20,13 +20,13 @@ Weekly NFL picks before kickoff — spread, moneyline, or total — graded from 
 
 ## Tech stack
 
-| Area | Choices |
-| --- | --- |
-| App | Python 3.14, Django 5.2, django-htmx, server-rendered templates |
-| Data | PostgreSQL 17, dj-database-url, psycopg |
-| Tooling | uv, ruff, mypy (django-stubs), pytest-django, Lefthook |
-| Ops | Gunicorn, WhiteNoise, GitHub Actions, Render |
-| Integrations | The Odds API; production Postgres via `DATABASE_URL` (Neon) |
+| Area         | Choices                                                         |
+| ------------ | --------------------------------------------------------------- |
+| App          | Python 3.14, Django 5.2, django-htmx, server-rendered templates |
+| Data         | PostgreSQL 17, dj-database-url, psycopg                         |
+| Tooling      | uv, ruff, mypy (django-stubs), pytest-django, Lefthook          |
+| Ops          | Gunicorn, WhiteNoise, GitHub Actions, Render                    |
+| Integrations | The Odds API; production Postgres via `DATABASE_URL` (Neon)     |
 
 ## Architecture
 
@@ -42,4 +42,4 @@ Full Getting Started, hooks/CI, and NFL seed/sync pointers: **[docs/DEVELOPMENT.
 
 ---
 
-*This website is a personal project and is not affiliated with, endorsed by, or sponsored by the National Football League (NFL) or any of its teams. All team names and betting data are used strictly for informational purposes.*
+_This website is a personal project and is not affiliated with, endorsed by, or sponsored by the National Football League (NFL) or any of its teams. All team names and betting data are used strictly for informational purposes._
