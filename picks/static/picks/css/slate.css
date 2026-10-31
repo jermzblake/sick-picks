@@ -29,6 +29,9 @@
 /* Page layout */
 body {
   margin: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
   background: var(--color-alabaster);
   color: var(--color-green);
   font-family: var(--font-body);
@@ -126,12 +129,21 @@ body {
 }
 
 .site-main {
+  flex: 1 0 auto;
   padding-block: 1.25rem 2rem;
 }
 
 .site-footer {
+  flex-shrink: 0;
+  height: 12vh;
+  min-height: 4.75rem;
+  display: flex;
+  align-items: center;
   border-top: 1px solid var(--color-border);
-  padding-block: 1rem 1.5rem;
+}
+
+.site-footer > .site-wrap {
+  width: 100%;
 }
 
 .site-footer__disclaimer {
@@ -150,7 +162,6 @@ body.landing .site-header {
 }
 
 body.landing .site-main {
-  min-height: calc(100vh - 8rem);
   display: flex;
   align-items: center;
   padding-block: 2rem 3rem;
