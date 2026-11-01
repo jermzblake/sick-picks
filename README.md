@@ -10,7 +10,7 @@ Make weekly NFL picks on the spread, moneyline, or total before kickoff. Each pi
 
 ## Features
 
-- Sign in and open the current week’s slate of games that have not kicked off yet
+- Sign up / sign in and open the current week’s slate of games that have not kicked off yet
 - Submit one pick per market per game (spread, moneyline, or total) with HTMX row updates
 - Lock in the line you saw; stale submissions are rejected when the book moved
 - Review pick history by week or season, with results, points, and American odds display

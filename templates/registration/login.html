@@ -29,5 +29,7 @@
       </p>
       <button class="landing__submit" type="submit">Log in</button>
     </form>
+    <p class="landing__alt">Need an account? <a href="{% url 'signup' %}{% if next %}?next={{ next|urlencode }}{% endif %}">Sign up</a></p>
   </section>
 {% endblock %}
+

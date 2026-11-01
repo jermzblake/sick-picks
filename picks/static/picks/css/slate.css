@@ -263,6 +263,17 @@ body.landing .site-main > .site-wrap {
   font-size: 0.85rem;
 }
 
+.landing__help {
+  font-size: 0.8rem;
+  color: var(--color-green-muted);
+  line-height: 1.35;
+}
+
+.landing__help ul {
+  margin: 0.25rem 0 0;
+  padding-left: 1.1rem;
+}
+
 .landing__submit {
   margin-top: 0.35rem;
   font: inherit;
@@ -285,6 +296,24 @@ body.landing .site-main > .site-wrap {
   outline-offset: 2px;
 }
 
+.landing__alt {
+  margin: 1.25rem 0 0;
+  font-size: 0.95rem;
+  color: var(--color-green-muted);
+  animation: landing-rise 0.55s ease-out 0.24s both;
+}
+
+.landing__alt a {
+  color: var(--color-green);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.landing__alt a:hover {
+  color: color-mix(in srgb, var(--color-green) 75%, black);
+}
+
 @keyframes landing-rise {
   from {
     opacity: 0;
@@ -299,7 +328,8 @@ body.landing .site-main > .site-wrap {
 @media (prefers-reduced-motion: reduce) {
   .landing__brand,
   .landing__tagline,
-  .landing__form {
+  .landing__form,
+  .landing__alt {
     animation: none;
   }
 }

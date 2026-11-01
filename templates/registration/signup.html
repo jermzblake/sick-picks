@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block title %}Sick Picks{% endblock %}
+{% block body_class %}landing{% endblock %}
+
+{% block content %}
+  <section class="landing">
+    <h1 class="landing__brand">Sick Picks</h1>
+    <p class="landing__tagline">Create an account to make your weekly NFL picks.</p>
+    <form class="landing__form" method="post">
+      {% csrf_token %}
+      {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+      {% if form.non_field_errors %}
+        <ul class="landing__errors">
+          {% for error in form.non_field_errors %}
+            <li>{{ error }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+      <p class="landing__field">
+        <label for="id_username">Username</label>
+        {{ form.username }}
+        {{ form.username.errors }}
+      </p>
+      <p class="landing__field">
+        <label for="id_password1">Password</label>
+        {{ form.password1 }}
+        {% if form.password1.help_text %}
+          <div class="landing__help">{{ form.password1.help_text }}</div>
+        {% endif %}
+        {{ form.password1.errors }}
+      </p>
+      <p class="landing__field">
+        <label for="id_password2">Confirm password</label>
+        {{ form.password2 }}
+        {{ form.password2.errors }}
+      </p>
+      <button class="landing__submit" type="submit">Sign up</button>
+    </form>
+    <p class="landing__alt">Already have an account? <a href="{% url 'login' %}{% if next %}?next={{ next|urlencode }}{% endif %}">Log in</a></p>
+  </section>
+{% endblock %}
