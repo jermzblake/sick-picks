@@ -32,7 +32,7 @@ Make weekly NFL picks on the spread, moneyline, or total before kickoff. Each pi
 
 **Domain.** Three Django apps — `accounts`, `sports`, and `picks`. A `Game` collects immutable `GameLine` snapshots from the provider; a `Pick` ties a user to a game, market, and the line they locked. Sync upserts games and lines; settlement grades picks once a game is final or cancelled. Details live in [docs/DOMAIN.md](docs/DOMAIN.md).
 
-**Infrastructure.** Locally the app runs on the host against Postgres in Docker Compose. Production is a Render web service with Gunicorn and a managed Postgres `DATABASE_URL`. CI runs `make ci` on GitHub Actions. NFL sync and settle are manual today (CLI or admin), not scheduled. See [docs/infrasturcture_architecture_v0.mmd](docs/infrasturcture_architecture_v0.mmd).
+**Infrastructure.** Locally the app runs on the host against Postgres in Docker Compose. Production is a Render web service with Gunicorn and a managed Postgres `DATABASE_URL` (Neon). CI runs `make ci` on GitHub Actions. Production NFL sync and settle run on a GitHub Actions schedule (management commands against Neon); CLI and admin remain for local use and catch-up. See [docs/nfl-data-sync_v1.md](docs/nfl-data-sync_v1.md) and [docs/infrasturcture_architecture_v1.mmd](docs/infrasturcture_architecture_v1.mmd).
 
 ## Development
 

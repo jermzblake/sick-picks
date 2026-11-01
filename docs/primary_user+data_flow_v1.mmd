@@ -1,0 +1,53 @@
+sequenceDiagram
+    autonumber
+
+    actor User
+    participant Browser
+    participant Django
+    participant DB as PostgreSQL
+    participant Sports as The Odds API
+    participant GH as GitHub Actions
+
+    Note over GH: Scheduled ~09:14 and ~19:14 ET
+
+    GH->>GH: manage.py sync_nfl_data
+    GH->>Sports: Fetch NFL games + spreads + scores
+    Sports-->>GH: Sports data
+
+    GH->>DB: Upsert Games
+    GH->>DB: Create GameLine snapshots
+    GH->>DB: Update scores / status
+
+    GH->>GH: manage.py settle_games
+    GH->>DB: Grade final / cancelled picks
+
+    Note over User,Browser: User opens current week's games
+
+    User->>Browser: View current week
+    Browser->>Django: GET /games
+    Django->>DB: Query upcoming games + current lines
+    DB-->>Django: Games + lines
+    Django-->>Browser: Render HTML
+    Browser-->>User: Display games / spreads
+
+    Note over User,Browser: User selects a team
+
+    User->>Browser: Select team
+    Browser->>Django: POST /games/{id}/pick
+
+    Django->>DB: Begin transaction
+    Django->>DB: Verify game not started
+    Django->>DB: Verify no existing pick
+    Django->>DB: Get current official GameLine
+    Django->>DB: Create Pick
+    DB-->>Django: Pick created
+    Django-->>Browser: HTMX partial
+    Browser-->>User: Pick locked
+
+    Note over User,Browser: After kickoff
+
+    User->>Browser: View pick history
+    Browser->>Django: GET /history
+    Django->>DB: Query picks + games + results
+    DB-->>Django: Pick history
+    Django-->>Browser: Render HTML
