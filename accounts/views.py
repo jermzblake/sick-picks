@@ -2,7 +2,7 @@ from django.contrib.auth import login
 from django.contrib.auth.views import RedirectURLMixin
 from django.db import IntegrityError, transaction
 from django.shortcuts import redirect
-from django.urls import reverse_lazy
+from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
 from django.views.generic import CreateView
@@ -14,7 +14,9 @@ from accounts.forms import SignUpForm
 class SignUpView(RedirectURLMixin, CreateView):
     form_class = SignUpForm
     template_name = 'registration/signup.html'
-    next_page = reverse_lazy('game-slate')
+
+    def get_default_redirect_url(self):
+        return reverse('game-slate')
 
     def dispatch(self, request, *args, **kwargs):
         if request.user.is_authenticated:
