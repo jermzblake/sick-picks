@@ -2,10 +2,23 @@ import logging
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
+from decimal import Decimal
 
+from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
-from django.db.models import OuterRef, QuerySet, Subquery
+from django.db.models import (
+    Count,
+    DecimalField,
+    IntegerField,
+    OuterRef,
+    Q,
+    QuerySet,
+    Subquery,
+    Sum,
+    Value,
+)
+from django.db.models.functions import Coalesce
 from django.utils import timezone
 from sports.models import Game, GameLine, Season
 from sports.providers.the_odds_api.weeks import week_window
@@ -70,6 +83,43 @@ def user_picks(user, *, games: Sequence[Game] | None = None) -> QuerySet[Pick]:
     if games is not None:
         picks = picks.filter(game__in=games)
     return picks.order_by('-submitted_at', 'id')
+
+
+def leaderboard_standings(
+    *,
+    season: Season,
+    week: int | None = None,
+    market: str | None = None,
+):
+    """Rank active users by points, then wins, then username.
+
+    Points sum and win counts use picks in ``season``, optionally limited
+    to ``week`` and/or ``market`` (pick_type). Unsettled/void picks with
+    NULL points do not contribute to the sum.
+    """
+    scope = Q(picks__game__season=season)
+    if week is not None:
+        scope &= Q(picks__game__week=week)
+    if market is not None:
+        scope &= Q(picks__pick_type=market)
+    wins_scope = scope & Q(picks__result=Pick.Result.WIN)
+    return (
+        get_user_model()
+        .objects.filter(is_active=True)
+        .annotate(
+            points=Coalesce(
+                Sum('picks__points', filter=scope),
+                Value(Decimal('0')),
+                output_field=DecimalField(max_digits=8, decimal_places=2),
+            ),
+            wins=Coalesce(
+                Count('picks', filter=wins_scope),
+                Value(0),
+                output_field=IntegerField(),
+            ),
+        )
+        .order_by('-points', '-wins', 'username')
+    )
 
 
 def submit_pick(

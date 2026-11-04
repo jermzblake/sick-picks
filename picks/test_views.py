@@ -89,6 +89,8 @@ def test_anonymous_requests_redirect_to_login(client):
     targets = [
         reverse('game-slate'),
         reverse('pick-history'),
+        reverse('leaderboard'),
+        reverse('leaderboard-api'),
     ]
     for url in targets:
         response = client.get(url)
@@ -1052,3 +1054,229 @@ def test_history_empty_season_message(client, monkeypatch):
 
     assert response.status_code == 200
     assert b'No picks this season.' in response.content
+
+
+def _grade_spread(user, game, home, *, points, result):
+    pick = submit_pick(
+        user=user,
+        game=game,
+        game_line=make_line(
+            game,
+            captured_at=_NOW - timedelta(hours=1),
+            home_spread=Decimal('-3.0'),
+            away_spread=Decimal('3.0'),
+        ),
+        picked_team=home,
+        pick_type=Pick.PickType.SPREAD,
+        now=_NOW,
+    )
+    pick.result = result
+    pick.points = points
+    pick.save(update_fields=['result', 'points'])
+    return pick
+
+
+def test_leaderboard_page_orders_by_points_then_wins_and_links_users(
+    client,
+    monkeypatch,
+):
+    _freeze(monkeypatch)
+    season = _season()
+    game, home, _ = _game(season, abbr='KC')
+    alice = make_user(username='alice')
+    bob = make_user(username='bob')
+    cara = make_user(username='cara')
+    _grade_spread(alice, game, home, points=Decimal('2.00'), result=Pick.Result.WIN)
+    _grade_spread(bob, game, home, points=Decimal('2.00'), result=Pick.Result.PUSH)
+    later, later_home, _ = _game(
+        season,
+        week=_WEEK + 1,
+        kickoff_at=_KICKOFF + timedelta(days=7),
+        abbr='BUF',
+    )
+    _grade_spread(
+        cara,
+        later,
+        later_home,
+        points=Decimal('3.00'),
+        result=Pick.Result.WIN,
+    )
+    client.force_login(alice)
+
+    response = client.get(reverse('leaderboard'))
+    body = response.content.decode()
+
+    assert response.status_code == 200
+    assert 'Leaderboard' in body
+    assert body.index('alice') < body.index('bob')
+    assert 'cara' in body
+    assert reverse('user-pick-history', args=['alice']) in body
+    assert f'?week={_WEEK}' in body
+    assert 'Wins' in body
+    assert 'aria-current="page">All</a>' in body
+
+
+def test_leaderboard_full_season_and_market_filter(client, monkeypatch):
+    _freeze(monkeypatch)
+    season = _season()
+    game, home, _ = _game(season, abbr='KC')
+    later, later_home, _ = _game(
+        season,
+        week=_WEEK + 1,
+        kickoff_at=_KICKOFF + timedelta(days=7),
+        abbr='BUF',
+    )
+    user = make_user(username='ranked')
+    line = make_line(
+        game,
+        captured_at=_NOW - timedelta(hours=1),
+        home_spread=Decimal('-3.0'),
+        away_spread=Decimal('3.0'),
+        game_total=Decimal('44.5'),
+        over_price=Decimal('1.909'),
+        under_price=Decimal('1.909'),
+    )
+    spread = submit_pick(
+        user=user,
+        game=game,
+        game_line=line,
+        picked_team=home,
+        pick_type=Pick.PickType.SPREAD,
+        now=_NOW,
+    )
+    spread.result = Pick.Result.WIN
+    spread.points = Decimal('1.00')
+    spread.save(update_fields=['result', 'points'])
+    total = submit_pick(
+        user=user,
+        game=game,
+        game_line=line,
+        pick_type=Pick.PickType.TOTAL,
+        total_side=Pick.TotalSide.OVER,
+        now=_NOW,
+    )
+    total.result = Pick.Result.WIN
+    total.points = Decimal('1.00')
+    total.save(update_fields=['result', 'points'])
+    _grade_spread(
+        user,
+        later,
+        later_home,
+        points=Decimal('1.00'),
+        result=Pick.Result.WIN,
+    )
+    client.force_login(user)
+
+    season_body = client.get(
+        reverse('leaderboard'),
+        {'week': 'all'},
+    ).content.decode()
+    market_body = client.get(
+        reverse('leaderboard'),
+        {'week': 'all', 'market': 'total'},
+    ).content.decode()
+
+    assert 'Season' in season_body
+    assert 'Current week' in season_body
+    assert '3.00' in season_body
+    assert 'aria-current="page">Total</a>' in market_body
+    assert '1.00' in market_body
+
+
+def test_leaderboard_api_returns_ranked_json_with_wins_tiebreak(client, monkeypatch):
+    _freeze(monkeypatch)
+    season = _season()
+    game, home, _ = _game(season)
+    alice = make_user(username='alice')
+    bob = make_user(username='bob')
+    _grade_spread(alice, game, home, points=Decimal('2.00'), result=Pick.Result.WIN)
+    _grade_spread(bob, game, home, points=Decimal('2.00'), result=Pick.Result.PUSH)
+    client.force_login(alice)
+
+    response = client.get(reverse('leaderboard-api'))
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload['season_view'] is False
+    assert payload['week'] == _WEEK
+    assert payload['market'] is None
+    names = [row['username'] for row in payload['standings']]
+    assert names.index('alice') < names.index('bob')
+    alice_row = next(row for row in payload['standings'] if row['username'] == 'alice')
+    bob_row = next(row for row in payload['standings'] if row['username'] == 'bob')
+    assert alice_row['points'] == '2.00'
+    assert alice_row['wins'] == 1
+    assert bob_row['wins'] == 0
+    assert alice_row['rank'] == 1
+    assert bob_row['rank'] == 2
+
+
+@pytest.mark.parametrize('week', ['0', '-1', 'no', '1.5', '32768'])
+def test_leaderboard_rejects_invalid_week(client, monkeypatch, week):
+    _freeze(monkeypatch)
+    client.force_login(make_user())
+
+    page = client.get(reverse('leaderboard'), {'week': week})
+    api = client.get(reverse('leaderboard-api'), {'week': week})
+
+    assert page.status_code == 400
+    assert api.status_code == 400
+    assert b'positive integer' in page.content
+    assert b'positive integer' in api.content
+
+
+def test_leaderboard_rejects_invalid_market(client, monkeypatch):
+    _freeze(monkeypatch)
+    client.force_login(make_user())
+
+    page = client.get(reverse('leaderboard'), {'market': 'props'})
+    api = client.get(reverse('leaderboard-api'), {'market': 'props'})
+
+    assert page.status_code == 400
+    assert api.status_code == 400
+    assert b'spread, moneyline, or total' in page.content
+    assert b'spread, moneyline, or total' in api.content
+
+
+def test_user_pick_history_shows_that_users_picks_only(client, monkeypatch):
+    _freeze(monkeypatch)
+    season = _season()
+    owner_game, owner_home, _ = _game(season, abbr='OWN')
+    other_game, other_home, _ = _game(season, abbr='OTH')
+    owner = make_user(username='owner')
+    other = make_user(username='other-person')
+    submit_pick(
+        user=owner,
+        game=owner_game,
+        game_line=make_line(owner_game, captured_at=_NOW - timedelta(hours=1)),
+        picked_team=owner_home,
+        pick_type=Pick.PickType.SPREAD,
+        now=_NOW,
+    )
+    submit_pick(
+        user=other,
+        game=other_game,
+        game_line=make_line(other_game, captured_at=_NOW - timedelta(hours=1)),
+        picked_team=other_home,
+        pick_type=Pick.PickType.SPREAD,
+        now=_NOW,
+    )
+    client.force_login(owner)
+
+    body = client.get(
+        reverse('user-pick-history', args=['other-person']),
+        {'week': _WEEK},
+    ).content.decode()
+
+    assert 'other-person' in body
+    assert 'OTH' in body
+    assert 'OWN' not in body
+
+
+def test_user_pick_history_unknown_username_is_404(client, monkeypatch):
+    _freeze(monkeypatch)
+    client.force_login(make_user())
+
+    response = client.get(reverse('user-pick-history', args=['missing-user']))
+
+    assert response.status_code == 404

@@ -2,10 +2,11 @@ from dataclasses import dataclass
 from decimal import Decimal
 
 from django import forms
+from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.db.models import Sum
-from django.http import HttpRequest, HttpResponse, HttpResponseBadRequest
+from django.http import HttpRequest, HttpResponse, HttpResponseBadRequest, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
@@ -15,7 +16,13 @@ from sports.seed import NFL_ABBREVIATION
 
 from picks.forms import CLIENT_MARKETS, PickForm
 from picks.models import Pick
-from picks.operations import UpcomingGame, submit_pick, upcoming_games, user_picks
+from picks.operations import (
+    UpcomingGame,
+    leaderboard_standings,
+    submit_pick,
+    upcoming_games,
+    user_picks,
+)
 
 _MAX_WEEK = 32_767
 _VALID_MARKETS = {value for value, _label in CLIENT_MARKETS}
@@ -113,7 +120,10 @@ def submit_game_pick(request: HttpRequest, game_id: int) -> HttpResponse:
 
 
 @login_required
-def pick_history(request: HttpRequest) -> HttpResponse:
+def pick_history(
+    request: HttpRequest,
+    username: str | None = None,
+) -> HttpResponse:
     now = timezone.now()
     timeframe = _history_timeframe_from_request(request, now)
     if isinstance(timeframe, HttpResponse):
@@ -122,8 +132,16 @@ def pick_history(request: HttpRequest) -> HttpResponse:
     market = _market_from_request(request)
     if isinstance(market, HttpResponse):
         return market
+    if username is None:
+        history_user = request.user
+    else:
+        history_user = get_object_or_404(
+            get_user_model(),
+            username=username,
+            is_active=True,
+        )
     season = _nfl_season(now)
-    picks = user_picks(request.user)
+    picks = user_picks(history_user)
     if season is None:
         picks = picks.none()
     else:
@@ -145,8 +163,73 @@ def pick_history(request: HttpRequest) -> HttpResponse:
             'market': market,
             'markets': CLIENT_MARKETS,
             'points_total': points_total,
+            'history_user': history_user,
+            'is_own_history': history_user.pk == request.user.pk,
         },
     )
+
+
+@login_required
+def leaderboard(request: HttpRequest) -> HttpResponse:
+    context = _leaderboard_context(request)
+    if isinstance(context, HttpResponse):
+        return context
+    return render(request, 'picks/leaderboard.html', context)
+
+
+@login_required
+def leaderboard_api(request: HttpRequest) -> HttpResponse:
+    context = _leaderboard_context(request)
+    if isinstance(context, HttpResponse):
+        return context
+    standings = [
+        {
+            'rank': rank,
+            'username': entry.username,
+            'points': f'{entry.points:.2f}',
+            'wins': entry.wins,
+        }
+        for rank, entry in enumerate(context['standings'], start=1)
+    ]
+    return JsonResponse(
+        {
+            'week': context['week'],
+            'season_view': context['season_view'],
+            'market': context['market'],
+            'standings': standings,
+        }
+    )
+
+
+def _leaderboard_context(request: HttpRequest):
+    now = timezone.now()
+    timeframe = _history_timeframe_from_request(request, now)
+    if isinstance(timeframe, HttpResponse):
+        return timeframe
+    season_view, week = timeframe
+    market = _market_from_request(request)
+    if isinstance(market, HttpResponse):
+        return market
+    season = _nfl_season(now)
+    if season is None:
+        standings = []
+    else:
+        standings = list(
+            leaderboard_standings(
+                season=season,
+                week=None if season_view else week,
+                market=market,
+            )
+        )
+    return {
+        'standings': standings,
+        'week': week,
+        'current_week': week_for(now),
+        'season_view': season_view,
+        'season': season,
+        'market': market,
+        'markets': CLIENT_MARKETS,
+    }
 
 
 def _slate_context(
