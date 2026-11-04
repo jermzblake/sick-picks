@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 {% load picks_extras %}
 
-{% block title %}{% if not is_own_history %}{{ history_user.username }} — {% endif %}{% if season_view %}Season{% else %}Week {{ week }}{% endif %}{% if market %} — {{ market|title }}{% endif %} — Sick Picks{% endblock %}
+{% block title %}{% if not is_own_history %}{{ history_user.username|display_username }} — {% endif %}{% if season_view %}Season{% else %}Week {{ week }}{% endif %}{% if market %} — {{ market|title }}{% endif %} — Sick Picks{% endblock %}
 
 {% block content %}
   <h1>
-    {% if not is_own_history %}{{ history_user.username }} — {% endif %}
+    {% if not is_own_history %}{{ history_user.username|display_username }} — {% endif %}
     {% if season_view %}Season{% else %}Week {{ week }}{% endif %}
     {% if market %}
       {% for value, label in markets %}

@@ -4,6 +4,14 @@ _EVEN = Decimal('2')
 _HUNDRED = Decimal('100')
 
 
+def display_username(username: str) -> str:
+    """Hide an email domain when a username looks like an address."""
+    local, sep, _domain = username.partition('@')
+    if not sep or not local:
+        return username
+    return local
+
+
 def to_american(decimal_odds: Decimal | None) -> str:
     """Convert decimal odds to an American odds string (e.g. '+150', '-110')."""
     if decimal_odds is None:

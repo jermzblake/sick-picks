@@ -2,7 +2,21 @@ from decimal import Decimal
 
 import pytest
 
-from picks.formatting import to_american
+from picks.formatting import display_username, to_american
+
+
+@pytest.mark.parametrize(
+    ('username', 'expected'),
+    [
+        ('test@gmail.com', 'test'),
+        ('alice', 'alice'),
+        ('a.b+tag@example.org', 'a.b+tag'),
+        ('@only-domain', '@only-domain'),
+        ('', ''),
+    ],
+)
+def test_display_username(username, expected):
+    assert display_username(username) == expected
 
 
 @pytest.mark.parametrize(

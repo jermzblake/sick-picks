@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load picks_extras %}
 
 {% block title %}{% if season_view %}Season{% else %}Week {{ week }}{% endif %}{% if market %} — {{ market|title }}{% endif %} — Leaderboard — Sick Picks{% endblock %}
 
@@ -53,7 +54,7 @@
             <tr>
               <td>{{ forloop.counter }}</td>
               <td>
-                <a href="{% url 'user-pick-history' entry.username %}{% if season_view %}?week=all{% else %}?week={{ week }}{% endif %}{% if market %}&amp;market={{ market }}{% endif %}">{{ entry.username }}</a>
+                <a href="{% url 'user-pick-history' entry.username %}{% if season_view %}?week=all{% else %}?week={{ week }}{% endif %}{% if market %}&amp;market={{ market }}{% endif %}">{{ entry.username|display_username }}</a>
               </td>
               <td>{{ entry.points }}</td>
               <td>{{ entry.wins }}</td>

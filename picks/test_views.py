@@ -1211,6 +1211,36 @@ def test_leaderboard_api_returns_ranked_json_with_wins_tiebreak(client, monkeypa
     assert bob_row['rank'] == 2
 
 
+def test_email_usernames_are_truncated_for_display(client, monkeypatch):
+    _freeze(monkeypatch)
+    season = _season()
+    game, home, _ = _game(season)
+    email_user = make_user(username='test@gmail.com')
+    viewer = make_user(username='viewer')
+    _grade_spread(
+        email_user,
+        game,
+        home,
+        points=Decimal('1.00'),
+        result=Pick.Result.WIN,
+    )
+    client.force_login(viewer)
+
+    board = client.get(reverse('leaderboard')).content.decode()
+    api = client.get(reverse('leaderboard-api')).json()
+    history = client.get(
+        reverse('user-pick-history', args=['test@gmail.com']),
+    ).content.decode()
+
+    profile_path = reverse('user-pick-history', args=['test@gmail.com'])
+    assert f'{profile_path}?week={_WEEK}">test</a>' in board
+    assert 'gmail.com</a>' not in board
+    assert any(row['username'] == 'test' for row in api['standings'])
+    assert all('@' not in row['username'] for row in api['standings'])
+    assert 'test —' in history
+    assert 'test@gmail.com' not in history
+
+
 @pytest.mark.parametrize('week', ['0', '-1', 'no', '1.5', '32768'])
 def test_leaderboard_rejects_invalid_week(client, monkeypatch, week):
     _freeze(monkeypatch)

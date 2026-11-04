@@ -14,6 +14,7 @@ from sports.models import Game, GameLine, Season
 from sports.providers.the_odds_api.weeks import season_year_for, week_for
 from sports.seed import NFL_ABBREVIATION
 
+from picks.formatting import display_username
 from picks.forms import CLIENT_MARKETS, PickForm
 from picks.models import Pick
 from picks.operations import (
@@ -185,7 +186,7 @@ def leaderboard_api(request: HttpRequest) -> HttpResponse:
     standings = [
         {
             'rank': rank,
-            'username': entry.username,
+            'username': display_username(entry.username),
             'points': f'{entry.points:.2f}',
             'wins': entry.wins,
         }
