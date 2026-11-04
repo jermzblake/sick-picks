@@ -22,6 +22,7 @@ from tests.builders import (
 from picks.models import Pick
 from picks.operations import (
     SettleReport,
+    leaderboard_standings,
     settle_game,
     settle_window,
     submit_pick,
@@ -559,6 +560,53 @@ def test_user_picks_are_newest_first_and_exclude_other_users():
     assert list(user_picks(owner)) == [newer, older]
     assert list(user_picks(owner, games=[])) == []
     assert list(user_picks(owner, games=[game])) == [newer, older]
+
+
+def test_leaderboard_standings_order_by_points_wins_then_username():
+    season = make_season(make_league())
+    week_one, home_one, _ = _matchup(season=season, week=1)
+    week_two, home_two, _ = _matchup(
+        season=season,
+        week=2,
+        kickoff_at=_KICKOFF + timedelta(days=7),
+    )
+    alice = make_user(username='alice')
+    bob = make_user(username='bob')
+    cara = make_user(username='cara')
+    for user, game, home, points, result in (
+        (alice, week_one, home_one, Decimal('1.00'), Pick.Result.WIN),
+        (alice, week_two, home_two, Decimal('1.00'), Pick.Result.WIN),
+        (bob, week_one, home_one, Decimal('2.00'), Pick.Result.WIN),
+        (cara, week_one, home_one, Decimal('2.00'), Pick.Result.PUSH),
+    ):
+        line = make_line(game, captured_at=_EARLIER)
+        pick = submit_pick(
+            user=user,
+            game=game,
+            game_line=line,
+            picked_team=home,
+            pick_type=Pick.PickType.SPREAD,
+            now=_NOW,
+        )
+        pick.result = result
+        pick.points = points
+        pick.save(update_fields=['result', 'points'])
+
+    standings = list(leaderboard_standings(season=season))
+
+    by_name = {row.username: row for row in standings}
+    assert [row.username for row in standings[:3]] == ['alice', 'bob', 'cara']
+    assert by_name['alice'].points == Decimal('2.00')
+    assert by_name['alice'].wins == 2
+    assert by_name['bob'].points == Decimal('2.00')
+    assert by_name['bob'].wins == 1
+    assert by_name['cara'].points == Decimal('2.00')
+    assert by_name['cara'].wins == 0
+
+    week_rows = list(leaderboard_standings(season=season, week=1))
+    alice_week = next(row for row in week_rows if row.username == 'alice')
+    assert alice_week.points == Decimal('1.00')
+    assert alice_week.wins == 1
 
 
 def test_settle_game_with_no_picks_returns_an_empty_list():
