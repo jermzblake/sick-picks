@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block title %}How to Play — Sick Picks{% endblock %}
+
+{% block content %}
+  <article class="how-to-play">
+    <header class="how-to-play__header">
+      <h1>How to Play</h1>
+      <p>Make weekly NFL picks against the line, track your results, and climb the leaderboard.</p>
+    </header>
+
+    <section class="how-to-play__section">
+      <h2>Viewing game lines</h2>
+      <p>
+        Open <strong>Games</strong> to see the current week’s slate. Each row shows the matchup,
+        kickoff time in your local timezone, and three market columns:
+        <strong>Spread</strong>, <strong>Moneyline</strong>, and <strong>Total</strong>.
+      </p>
+      <p>
+        Odds are shown in American format (for example <code>+150</code> or <code>-110</code>).
+        The numbers you see are the current line snapshot; when you submit a pick, that snapshot
+        is locked onto your pick.
+      </p>
+    </section>
+
+    <section class="how-to-play__section">
+      <h2>Making picks</h2>
+      <p>
+        Click a market button on a game to submit your pick. You can take up to one pick in each
+        market on the same game — Spread, Moneyline, and Total.
+      </p>
+      <ul>
+        <li><strong>Spread</strong> — pick a team against the point spread.</li>
+        <li><strong>Moneyline</strong> — pick a team to win outright.</li>
+        <li><strong>Total</strong> — pick Over or Under the combined score.</li>
+      </ul>
+      <p>Picks close at the game’s scheduled kickoff. Games that have already started do not appear on the slate.</p>
+    </section>
+
+    <section class="how-to-play__section">
+      <h2>Picks are final</h2>
+      <p>
+        Once you submit a pick, you cannot change it or make another pick in the same market for
+        that game. The slate shows a locked control for markets you have already taken.
+      </p>
+    </section>
+
+    <section class="how-to-play__section">
+      <h2>History and scoring</h2>
+      <p>
+        Open <strong>Picks</strong> to review your history by week or the full season, and filter
+        by market. Results stay pending until the game is final.
+      </p>
+      <ul>
+        <li><strong>Spread and Total</strong> — win = 1 point, push = 0.5, loss = 0.</li>
+        <li><strong>Moneyline</strong> — points equal profit on a 100-point stake at your locked odds
+          (for example <code>-150</code> pays 50 on a win; <code>+200</code> pays 200).</li>
+        <li><strong>Cancelled games</strong> — picks are void and do not count toward your total.</li>
+      </ul>
+    </section>
+
+    <section class="how-to-play__section">
+      <h2>Leaderboard</h2>
+      <p>
+        Check the <strong>Leaderboard</strong> to see how you stack up. Standings are ranked by
+        points, with wins as the tiebreaker. Filter by week or full season, and by market, the same
+        way you filter Picks.
+      </p>
+    </section>
+
+    <p class="how-to-play__cta">
+      {% if user.is_authenticated %}
+        <a class="how-to-play__button" href="{{ continue_url }}">Go to Games</a>
+      {% else %}
+        <a class="how-to-play__button" href="{{ continue_url }}">Sign up</a>
+        <a class="how-to-play__secondary" href="{% url 'login' %}">Log in</a>
+      {% endif %}
+    </p>
+  </article>
+{% endblock %}

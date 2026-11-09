@@ -1,3 +1,5 @@
+from urllib.parse import parse_qs, urlparse
+
 import pytest
 from django.contrib.auth import get_user_model
 from django.urls import reverse
@@ -8,6 +10,14 @@ pytestmark = pytest.mark.django_db
 User = get_user_model()
 
 _VALID_PASSWORD = 'Correct-Horse-Battery1'
+
+
+def _continue_from_redirect(location: str) -> str:
+    parsed = urlparse(location)
+    assert parsed.path == reverse('how-to-play')
+    values = parse_qs(parsed.query).get('continue', [])
+    assert len(values) == 1
+    return values[0]
 
 
 def test_signup_get_returns_200(client):
@@ -27,7 +37,7 @@ def test_signup_valid_post_creates_user_logs_in_and_redirects(client):
     )
 
     assert response.status_code == 302
-    assert response['Location'] == reverse('game-slate')
+    assert _continue_from_redirect(response['Location']) == reverse('game-slate')
     user = User.objects.get(username='newpicker')
     assert int(client.session['_auth_user_id']) == user.pk
 
@@ -45,7 +55,7 @@ def test_signup_honors_safe_next_redirect(client):
     )
 
     assert response.status_code == 302
-    assert response['Location'] == next_url
+    assert _continue_from_redirect(response['Location']) == next_url
 
 
 def test_login_page_signup_link_forwards_next(client):
@@ -54,6 +64,15 @@ def test_login_page_signup_link_forwards_next(client):
 
     assert response.status_code == 200
     assert f'{reverse("signup")}?next={next_url}' in response.content.decode()
+
+
+def test_login_and_signup_pages_link_to_how_to_play(client):
+    for name in ('login', 'signup'):
+        response = client.get(reverse(name))
+        assert response.status_code == 200
+        body = response.content.decode()
+        assert reverse('how-to-play') in body
+        assert 'How to Play' in body
 
 
 def test_signup_duplicate_username_shows_errors(client):
@@ -136,3 +155,15 @@ def test_login_page_links_to_signup(client):
 
     assert response.status_code == 200
     assert reverse('signup') in response.content.decode()
+
+
+def test_login_still_redirects_to_game_slate(client):
+    make_user(username='returner')
+
+    response = client.post(
+        reverse('login'),
+        {'username': 'returner', 'password': 'secret'},
+    )
+
+    assert response.status_code == 302
+    assert response['Location'] == reverse('game-slate')

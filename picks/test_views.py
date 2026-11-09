@@ -114,6 +114,53 @@ def test_home_redirects_authenticated_users_to_game_slate(client):
     assert response.url == reverse('game-slate')
 
 
+def test_how_to_play_is_public_for_anonymous_users(client):
+    response = client.get(reverse('how-to-play'))
+
+    assert response.status_code == 200
+    body = response.content.decode()
+    assert 'How to Play' in body
+    assert 'Spread' in body
+    assert 'Moneyline' in body
+    assert 'Total' in body
+    assert 'cannot change' in body
+    assert 'Leaderboard' in body
+    assert reverse('signup') in body
+
+
+def test_how_to_play_is_public_for_authenticated_users(client):
+    client.force_login(make_user())
+    response = client.get(reverse('how-to-play'))
+
+    assert response.status_code == 200
+    body = response.content.decode()
+    assert 'cannot change' in body
+    assert reverse('game-slate') in body
+    assert 'Go to Games' in body
+
+
+def test_how_to_play_honors_safe_continue_url(client):
+    client.force_login(make_user())
+    continue_url = reverse('pick-history')
+    response = client.get(reverse('how-to-play'), {'continue': continue_url})
+
+    assert response.status_code == 200
+    assert continue_url in response.content.decode()
+
+
+def test_how_to_play_rejects_unsafe_continue_url(client):
+    client.force_login(make_user())
+    response = client.get(
+        reverse('how-to-play'),
+        {'continue': 'https://evil.example/phish'},
+    )
+
+    assert response.status_code == 200
+    body = response.content.decode()
+    assert 'https://evil.example/phish' not in body
+    assert reverse('game-slate') in body
+
+
 def test_slate_shows_the_current_line_and_omits_started_games(client, monkeypatch):
     _freeze(monkeypatch)
     season = _season()

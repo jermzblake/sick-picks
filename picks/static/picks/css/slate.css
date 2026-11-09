@@ -135,15 +135,49 @@ body {
 
 .site-footer {
   flex-shrink: 0;
-  height: 12vh;
   min-height: 4.75rem;
   display: flex;
   align-items: center;
+  padding-block: 1.25rem;
   border-top: 1px solid var(--color-border);
 }
 
 .site-footer > .site-wrap {
   width: 100%;
+}
+
+.site-footer__inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.site-footer__nav {
+  text-align: center;
+}
+
+.site-footer__heading {
+  margin: 0 0 0.35rem;
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-green);
+}
+
+.site-footer__nav a {
+  color: var(--color-green);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.site-footer__nav a:hover {
+  color: color-mix(in srgb, var(--color-green) 75%, black);
+  text-decoration: underline;
+  text-decoration-color: var(--color-gold);
+  text-underline-offset: 0.15em;
 }
 
 .site-footer__disclaimer {
@@ -153,6 +187,25 @@ body {
   line-height: 1.45;
   color: var(--color-green-muted);
   text-align: center;
+}
+
+@media (min-width: 40rem) {
+  .site-footer__inner {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 2rem;
+  }
+
+  .site-footer__nav {
+    text-align: left;
+    flex-shrink: 0;
+  }
+
+  .site-footer__disclaimer {
+    margin: 0;
+    text-align: left;
+  }
 }
 
 /* Landing login */
@@ -203,10 +256,39 @@ body.landing .site-main > .site-wrap {
 }
 
 .landing__tagline {
-  margin: 1rem 0 1.75rem;
+  margin: 1rem 0 0.85rem;
   font-size: 1.05rem;
   color: var(--color-green-muted);
   animation: landing-rise 0.55s ease-out 0.08s both;
+}
+
+.landing__howto {
+  margin: 2rem 0 1.75rem;
+  animation: landing-rise 0.55s ease-out 0.12s both;
+}
+
+.landing__howto a {
+  display: inline-block;
+  padding: 0.45rem 1rem;
+  border: 2px solid var(--color-gold);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--color-green);
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-decoration: none;
+}
+
+.landing__howto a:hover {
+  background: var(--color-gold);
+}
+
+.landing__howto a:focus-visible {
+  outline: 2px solid var(--color-green);
+  outline-offset: 2px;
 }
 
 .landing__form {
@@ -328,10 +410,114 @@ body.landing .site-main > .site-wrap {
 @media (prefers-reduced-motion: reduce) {
   .landing__brand,
   .landing__tagline,
+  .landing__howto,
   .landing__form,
   .landing__alt {
     animation: none;
   }
+}
+
+/* How to Play */
+.how-to-play {
+  max-width: 40rem;
+  margin-inline: auto;
+}
+
+.how-to-play__header {
+  margin-bottom: 2rem;
+}
+
+.how-to-play__header h1 {
+  margin: 0 0 0.5rem;
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 6vw, 2.75rem);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  line-height: 1;
+  color: var(--color-green);
+}
+
+.how-to-play__header p {
+  margin: 0;
+  font-size: 1.05rem;
+  color: var(--color-green-muted);
+}
+
+.how-to-play__section {
+  margin-bottom: 1.75rem;
+}
+
+.how-to-play__section h2 {
+  margin: 0 0 0.5rem;
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--color-green);
+}
+
+.how-to-play__section p,
+.how-to-play__section li {
+  margin: 0 0 0.65rem;
+  line-height: 1.55;
+  color: var(--color-green);
+}
+
+.how-to-play__section ul {
+  margin: 0 0 0.65rem;
+  padding-left: 1.25rem;
+}
+
+.how-to-play__section code {
+  font-size: 0.92em;
+  padding: 0.1em 0.3em;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--color-green) 8%, transparent);
+}
+
+.how-to-play__cta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  margin: 2rem 0 0;
+}
+
+.how-to-play__button {
+  display: inline-block;
+  padding: 0.7rem 1.25rem;
+  border: none;
+  border-radius: 4px;
+  background: var(--color-gold);
+  color: var(--color-green);
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-decoration: none;
+}
+
+.how-to-play__button:hover {
+  background: color-mix(in srgb, var(--color-gold) 85%, black);
+}
+
+.how-to-play__button:focus-visible {
+  outline: 2px solid var(--color-green);
+  outline-offset: 2px;
+}
+
+.how-to-play__secondary {
+  color: var(--color-green);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.how-to-play__secondary:hover {
+  color: color-mix(in srgb, var(--color-green) 75%, black);
 }
 
 /* Slate table */
