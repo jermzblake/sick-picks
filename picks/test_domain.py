@@ -248,23 +248,23 @@ def test_spread_submit_rejects_a_line_without_a_spread():
         _submit(game, home, pick_type=Pick.PickType.SPREAD, line=line)
 
 
-def test_final_spread_cover_scores_one_point():
+def test_final_spread_cover_scores_a_hundred_points():
     game, _home, away = _matchup()
     pick = _submit(game, away, pick_type=Pick.PickType.SPREAD, team=away)
     _finish_matchup(game, status='final', home_score=20, away_score=24)
     settle_pick(pick)
     assert pick.result == Pick.Result.WIN
-    assert pick.points == Decimal('1.00')
+    assert pick.points == Decimal('100.00')
 
 
-def test_final_spread_push_scores_half_a_point():
+def test_final_spread_push_scores_fifty_points():
     game, home, _away = _matchup()
     line = make_line(game, home_spread=Decimal('-3.0'), away_spread=Decimal('3.0'))
     pick = _submit(game, home, pick_type=Pick.PickType.SPREAD, line=line)
     _finish_matchup(game, status='final', home_score=23, away_score=20)
     settle_pick(pick)
     assert pick.result == Pick.Result.PUSH
-    assert pick.points == Decimal('0.50')
+    assert pick.points == Decimal('50.00')
 
 
 def test_final_spread_loss_scores_zero():
@@ -379,7 +379,7 @@ def test_settling_a_final_pick_twice_keeps_the_same_result():
     settle_pick(pick)
     pick.refresh_from_db()
     assert pick.result == Pick.Result.WIN
-    assert pick.points == Decimal('1.00')
+    assert pick.points == Decimal('100.00')
 
 
 def test_settle_rejects_a_picked_team_that_is_not_in_the_game():
@@ -512,8 +512,8 @@ def test_spread_submit_rejects_an_over_under_side():
 @pytest.mark.parametrize(
     ('side', 'home_score', 'away_score', 'result', 'points'),
     [
-        (Pick.TotalSide.OVER, 24, 21, Pick.Result.WIN, Decimal('1.00')),
-        (Pick.TotalSide.UNDER, 20, 17, Pick.Result.WIN, Decimal('1.00')),
+        (Pick.TotalSide.OVER, 24, 21, Pick.Result.WIN, Decimal('100.00')),
+        (Pick.TotalSide.UNDER, 20, 17, Pick.Result.WIN, Decimal('100.00')),
         (Pick.TotalSide.OVER, 24, 20, Pick.Result.LOSS, Decimal('0.00')),
         (Pick.TotalSide.UNDER, 30, 21, Pick.Result.LOSS, Decimal('0.00')),
     ],
@@ -539,7 +539,7 @@ def test_whole_number_total_pushes_when_the_combined_score_matches():
     _finish_matchup(game, status='final', home_score=24, away_score=20)
     settle_pick(pick)
     assert pick.result == Pick.Result.PUSH
-    assert pick.points == Decimal('0.50')
+    assert pick.points == Decimal('50.00')
 
 
 def test_half_point_total_does_not_push():

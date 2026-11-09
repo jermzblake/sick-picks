@@ -7,8 +7,8 @@ from picks.models import Pick
 
 _STAKE = Decimal('100')
 _POINTS = Decimal('0.01')
-_SPREAD_WIN = Decimal('1.00')
-_SPREAD_PUSH = Decimal('0.50')
+_SPREAD_WIN = Decimal('100.00')
+_SPREAD_PUSH = Decimal('50.00')
 _SPREAD_LOSS = Decimal('0.00')
 _NO_PROFIT = Decimal('0.00')
 

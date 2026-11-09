@@ -59,3 +59,5 @@ python manage.py settle_games \
 ```
 
 The same settlement is available in Django Admin. Open Games and choose **Settle games**. Leave both bounds empty for the current week, or set both to settle another window.
+
+Settlement recomputes points from final scores and locked line terms, so it is also the way to backfill after a scoring-rule change. After deploying a points scale update, re-settle the season window with `--from` / `--to` (or the admin Settle form) so existing graded spread and total picks pick up the new values. Unsettled and void picks stay untouched.

@@ -321,7 +321,7 @@ def test_settle_game_grades_every_pick_on_a_final_game():
     spread.refresh_from_db()
     moneyline.refresh_from_db()
     assert spread.result == Pick.Result.WIN
-    assert spread.points == Decimal('1.00')
+    assert spread.points == Decimal('100.00')
     assert moneyline.result == Pick.Result.WIN
     assert moneyline.points == Decimal('50.00')
 
@@ -349,7 +349,7 @@ def test_settle_game_grades_a_total():
 
     total.refresh_from_db()
     assert total.result == Pick.Result.WIN
-    assert total.points == Decimal('1.00')
+    assert total.points == Decimal('100.00')
     assert total.picked_team_id is None
 
 
@@ -459,7 +459,7 @@ def test_settle_game_is_stable_when_run_twice():
 
     pick.refresh_from_db()
     assert pick.result == Pick.Result.WIN
-    assert pick.points == Decimal('1.00')
+    assert pick.points == Decimal('100.00')
 
 
 def test_settle_game_does_not_save_a_partial_grade():
@@ -574,10 +574,10 @@ def test_leaderboard_standings_order_by_points_wins_then_username():
     bob = make_user(username='bob')
     cara = make_user(username='cara')
     for user, game, home, points, result in (
-        (alice, week_one, home_one, Decimal('1.00'), Pick.Result.WIN),
-        (alice, week_two, home_two, Decimal('1.00'), Pick.Result.WIN),
-        (bob, week_one, home_one, Decimal('2.00'), Pick.Result.WIN),
-        (cara, week_one, home_one, Decimal('2.00'), Pick.Result.PUSH),
+        (alice, week_one, home_one, Decimal('100.00'), Pick.Result.WIN),
+        (alice, week_two, home_two, Decimal('100.00'), Pick.Result.WIN),
+        (bob, week_one, home_one, Decimal('200.00'), Pick.Result.WIN),
+        (cara, week_one, home_one, Decimal('200.00'), Pick.Result.PUSH),
     ):
         line = make_line(game, captured_at=_EARLIER)
         pick = submit_pick(
@@ -596,16 +596,16 @@ def test_leaderboard_standings_order_by_points_wins_then_username():
 
     by_name = {row.username: row for row in standings}
     assert [row.username for row in standings[:3]] == ['alice', 'bob', 'cara']
-    assert by_name['alice'].points == Decimal('2.00')
+    assert by_name['alice'].points == Decimal('200.00')
     assert by_name['alice'].wins == 2
-    assert by_name['bob'].points == Decimal('2.00')
+    assert by_name['bob'].points == Decimal('200.00')
     assert by_name['bob'].wins == 1
-    assert by_name['cara'].points == Decimal('2.00')
+    assert by_name['cara'].points == Decimal('200.00')
     assert by_name['cara'].wins == 0
 
     week_rows = list(leaderboard_standings(season=season, week=1))
     alice_week = next(row for row in week_rows if row.username == 'alice')
-    assert alice_week.points == Decimal('1.00')
+    assert alice_week.points == Decimal('100.00')
     assert alice_week.wins == 1
 
 

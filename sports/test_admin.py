@@ -77,7 +77,7 @@ def test_settle_action_grades_a_final_game(admin_client):
     assert 'settled' in response.content.decode()
     pick.refresh_from_db()
     assert pick.result == Pick.Result.WIN
-    assert pick.points == Decimal('1.00')
+    assert pick.points == Decimal('100.00')
 
 
 def test_settle_action_reports_a_missing_score_and_still_grades_another(admin_client):
@@ -155,7 +155,7 @@ def test_saving_a_final_score_settles_the_pick(admin_client):
     assert b'settled' in response.content
     pick.refresh_from_db()
     assert pick.result == Pick.Result.WIN
-    assert pick.points == Decimal('1.00')
+    assert pick.points == Decimal('100.00')
 
 
 def test_saving_a_final_game_without_scores_does_not_grade(admin_client):
