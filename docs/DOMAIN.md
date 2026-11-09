@@ -73,7 +73,7 @@ The logic used to calculate the points earned by a Pick.
 
 The MVP has three scoring approaches:
 
-- Against the spread: win = 1 point, push = 0.5 points, loss = 0 points.
+- Against the spread: win = 100 points, push = 50 points, loss = 0 points.
 - Game total: the same win, push, and loss points as against the spread.
 - Moneyline: odds are applied against a constant 100-point stake.
 
@@ -320,8 +320,8 @@ Scoring:
 
 | Outcome     | Points |
 | ----------- | -----: |
-| Win / Cover |    1.0 |
-| Push        |    0.5 |
+| Win / Cover |  100.0 |
+| Push        |   50.0 |
 | Loss        |    0.0 |
 
 ### Game Total
@@ -334,7 +334,7 @@ The combined final score is the home score plus the away score.
 - Under wins when the combined score is less than the total.
 - An equal combined score is a push.
 
-Scoring uses the same points as against the spread: 1, 0.5, and 0. A whole-number total can push. A half-point total cannot. The over and under prices are the juice and do not change the points, for the same reason a spread price does not.
+Scoring uses the same points as against the spread: 100, 50, and 0. A whole-number total can push. A half-point total cannot. The over and under prices are the juice and do not change the points, for the same reason a spread price does not.
 
 ### Moneyline
 

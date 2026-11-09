@@ -546,7 +546,7 @@ def test_history_shows_only_the_current_users_picks_and_status(client, monkeypat
     settle_game(game)
     scored_body = client.get(reverse('pick-history')).content.decode()
     assert 'Win' in scored_body
-    assert '1.00' in scored_body
+    assert '100.00' in scored_body
     assert '>10</span>' in scored_body
     assert '>30</span>' in scored_body
     assert 'team-score--winner">30</span>' in scored_body
@@ -607,15 +607,15 @@ def test_a_total_pick_renders_its_side_on_the_slate_and_in_history(client, monke
     assert 'Over' in scored
     assert '44.5' in scored
     assert 'Win' in scored
-    assert '1.00' in scored
+    assert '100.00' in scored
 
 
 @pytest.mark.parametrize(
     ('side', 'total', 'home_score', 'away_score', 'result', 'points'),
     [
-        (Pick.TotalSide.OVER, Decimal('44.5'), 30, 20, 'Win', '1.00'),
+        (Pick.TotalSide.OVER, Decimal('44.5'), 30, 20, 'Win', '100.00'),
         (Pick.TotalSide.UNDER, Decimal('44.5'), 30, 20, 'Loss', '0.00'),
-        (Pick.TotalSide.OVER, Decimal('44.0'), 24, 20, 'Push', '0.50'),
+        (Pick.TotalSide.OVER, Decimal('44.0'), 24, 20, 'Push', '50.00'),
     ],
 )
 def test_history_shows_a_graded_total(
@@ -941,7 +941,7 @@ def test_history_week_query_shows_that_weeks_picks_and_total(client, monkeypatch
 
     assert 'NXT' in body
     assert 'CUR' not in body
-    assert 'Total: 1.00' in body
+    assert 'Total: 100.00' in body
 
 
 def test_history_full_season_shows_all_weeks_and_total(client, monkeypatch):
@@ -981,7 +981,7 @@ def test_history_full_season_shows_all_weeks_and_total(client, monkeypatch):
     assert 'WKA' in body
     assert 'WKB' in body
     assert 'Season' in body
-    assert 'Total: 2.00' in body
+    assert 'Total: 200.00' in body
     assert 'Current week' in body
 
 
@@ -1060,14 +1060,14 @@ def test_history_market_filter_on_week_and_season(client, monkeypatch):
     ).content.decode()
 
     assert 'Spread' in week_spread
-    assert 'Total: 1.00' in week_spread
+    assert 'Total: 100.00' in week_spread
     assert 'Over' not in week_spread
     assert 'BUF' not in week_spread
     assert 'Over' in week_total
-    assert 'Total: 1.00' in week_total
+    assert 'Total: 100.00' in week_total
     assert 'KC' in season_spread
     assert 'BUF' in season_spread
-    assert 'Total: 2.00' in season_spread
+    assert 'Total: 200.00' in season_spread
     assert 'Over' not in season_spread
 
 
@@ -1133,8 +1133,8 @@ def test_leaderboard_page_orders_by_points_then_wins_and_links_users(
     alice = make_user(username='alice')
     bob = make_user(username='bob')
     cara = make_user(username='cara')
-    _grade_spread(alice, game, home, points=Decimal('2.00'), result=Pick.Result.WIN)
-    _grade_spread(bob, game, home, points=Decimal('2.00'), result=Pick.Result.PUSH)
+    _grade_spread(alice, game, home, points=Decimal('200.00'), result=Pick.Result.WIN)
+    _grade_spread(bob, game, home, points=Decimal('200.00'), result=Pick.Result.PUSH)
     later, later_home, _ = _game(
         season,
         week=_WEEK + 1,
@@ -1145,7 +1145,7 @@ def test_leaderboard_page_orders_by_points_then_wins_and_links_users(
         cara,
         later,
         later_home,
-        points=Decimal('3.00'),
+        points=Decimal('300.00'),
         result=Pick.Result.WIN,
     )
     client.force_login(alice)
@@ -1192,7 +1192,7 @@ def test_leaderboard_full_season_and_market_filter(client, monkeypatch):
         now=_NOW,
     )
     spread.result = Pick.Result.WIN
-    spread.points = Decimal('1.00')
+    spread.points = Decimal('100.00')
     spread.save(update_fields=['result', 'points'])
     total = submit_pick(
         user=user,
@@ -1203,13 +1203,13 @@ def test_leaderboard_full_season_and_market_filter(client, monkeypatch):
         now=_NOW,
     )
     total.result = Pick.Result.WIN
-    total.points = Decimal('1.00')
+    total.points = Decimal('100.00')
     total.save(update_fields=['result', 'points'])
     _grade_spread(
         user,
         later,
         later_home,
-        points=Decimal('1.00'),
+        points=Decimal('100.00'),
         result=Pick.Result.WIN,
     )
     client.force_login(user)
@@ -1225,9 +1225,9 @@ def test_leaderboard_full_season_and_market_filter(client, monkeypatch):
 
     assert 'Season' in season_body
     assert 'Current week' in season_body
-    assert '3.00' in season_body
+    assert '300.00' in season_body
     assert 'aria-current="page">Total</a>' in market_body
-    assert '1.00' in market_body
+    assert '100.00' in market_body
 
 
 def test_leaderboard_api_returns_ranked_json_with_wins_tiebreak(client, monkeypatch):
@@ -1236,8 +1236,8 @@ def test_leaderboard_api_returns_ranked_json_with_wins_tiebreak(client, monkeypa
     game, home, _ = _game(season)
     alice = make_user(username='alice')
     bob = make_user(username='bob')
-    _grade_spread(alice, game, home, points=Decimal('2.00'), result=Pick.Result.WIN)
-    _grade_spread(bob, game, home, points=Decimal('2.00'), result=Pick.Result.PUSH)
+    _grade_spread(alice, game, home, points=Decimal('200.00'), result=Pick.Result.WIN)
+    _grade_spread(bob, game, home, points=Decimal('200.00'), result=Pick.Result.PUSH)
     client.force_login(alice)
 
     response = client.get(reverse('leaderboard-api'))
@@ -1251,7 +1251,7 @@ def test_leaderboard_api_returns_ranked_json_with_wins_tiebreak(client, monkeypa
     assert names.index('alice') < names.index('bob')
     alice_row = next(row for row in payload['standings'] if row['username'] == 'alice')
     bob_row = next(row for row in payload['standings'] if row['username'] == 'bob')
-    assert alice_row['points'] == '2.00'
+    assert alice_row['points'] == '200.00'
     assert alice_row['wins'] == 1
     assert bob_row['wins'] == 0
     assert alice_row['rank'] == 1
@@ -1268,7 +1268,7 @@ def test_email_usernames_are_truncated_for_display(client, monkeypatch):
         email_user,
         game,
         home,
-        points=Decimal('1.00'),
+        points=Decimal('100.00'),
         result=Pick.Result.WIN,
     )
     client.force_login(viewer)
