@@ -1,3 +1,5 @@
+from urllib.parse import urlencode
+
 from django.contrib.auth import login
 from django.contrib.auth.views import RedirectURLMixin
 from django.db import IntegrityError, transaction
@@ -39,4 +41,7 @@ class SignUpView(RedirectURLMixin, CreateView):
             form.add_error('username', 'A user with that username already exists.')
             return self.form_invalid(form)
         login(self.request, self.object)
-        return redirect(self.get_success_url())
+        destination = self.get_success_url()
+        how_to_play = reverse('how-to-play')
+        query = urlencode({'continue': destination})
+        return redirect(f'{how_to_play}?{query}')

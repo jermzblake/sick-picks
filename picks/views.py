@@ -8,7 +8,9 @@ from django.core.exceptions import ValidationError
 from django.db.models import Sum
 from django.http import HttpRequest, HttpResponse, HttpResponseBadRequest, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 from sports.models import Game, GameLine, Season
 from sports.providers.the_odds_api.weeks import season_year_for, week_for
@@ -44,6 +46,20 @@ def home(request: HttpRequest) -> HttpResponse:
     if request.user.is_authenticated:
         return redirect('game-slate')
     return redirect('login')
+
+
+def how_to_play(request: HttpRequest) -> HttpResponse:
+    continue_url = _safe_continue_url(request)
+    if continue_url is None:
+        if request.user.is_authenticated:
+            continue_url = reverse('game-slate')
+        else:
+            continue_url = reverse('signup')
+    return render(
+        request,
+        'picks/how_to_play.html',
+        {'continue_url': continue_url},
+    )
 
 
 @login_required
@@ -449,3 +465,16 @@ def _form_error_text(form: forms.Form) -> str:
 
 def _is_htmx(request: HttpRequest) -> bool:
     return bool(getattr(request, 'htmx', False))
+
+
+def _safe_continue_url(request: HttpRequest) -> str | None:
+    raw = request.GET.get('continue')
+    if not raw:
+        return None
+    if url_has_allowed_host_and_scheme(
+        raw,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return raw
+    return None
