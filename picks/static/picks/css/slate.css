@@ -808,6 +808,11 @@ body.landing .site-main > .site-wrap {
   font-variant-numeric: tabular-nums;
 }
 
+.slate-market[data-market="moneyline"] .odds-button__price {
+  font-weight: 600;
+  color: var(--color-green);
+}
+
 .odds-button--selected {
   background: color-mix(in srgb, var(--color-gold) 28%, var(--color-alabaster));
   border-color: var(--color-gold);
