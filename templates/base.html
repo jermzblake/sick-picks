@@ -53,25 +53,65 @@
       ];
     });
   </script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      var toggle = document.querySelector('.site-nav-toggle');
+      var panel = document.getElementById('site-nav-panel');
+      var header = document.querySelector('.site-header');
+      if (!toggle || !panel || !header) return;
+
+      function setOpen(open) {
+        panel.classList.toggle('is-open', open);
+        toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      }
+
+      toggle.addEventListener('click', function () {
+        setOpen(!panel.classList.contains('is-open'));
+      });
+
+      document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape') setOpen(false);
+      });
+
+      document.addEventListener('click', function (event) {
+        if (!header.contains(event.target)) setOpen(false);
+      });
+    });
+  </script>
 </head>
 <body class="{% block body_class %}{% endblock %}">
   <header class="site-header">
     <div class="site-wrap site-header__inner">
       <a class="site-brand" href="{% url 'home' %}">Sick Picks</a>
       {% if user.is_authenticated %}
-        <nav class="site-nav">
-          <a href="{% url 'game-slate' %}">Games</a>
-          <a href="{% url 'pick-history' %}">Picks</a>
-          <a href="{% url 'leaderboard' %}">Leaderboard</a>
-        </nav>
-        <div class="site-header__actions">
-          {% if user.is_staff %}
-            <a href="{% url 'admin:index' %}">Admin</a>
-          {% endif %}
-          <form method="post" action="{% url 'logout' %}">
-            {% csrf_token %}
-            <button type="submit">Log out</button>
-          </form>
+        <button
+          type="button"
+          class="site-nav-toggle"
+          aria-expanded="false"
+          aria-controls="site-nav-panel"
+        >
+          <span class="site-nav-toggle__bars" aria-hidden="true">
+            <span></span>
+            <span></span>
+            <span></span>
+          </span>
+          <span class="visually-hidden">Menu</span>
+        </button>
+        <div id="site-nav-panel" class="site-nav-panel">
+          <nav class="site-nav" aria-label="Primary">
+            <a href="{% url 'game-slate' %}">Games</a>
+            <a href="{% url 'pick-history' %}">Picks</a>
+            <a href="{% url 'leaderboard' %}">Leaderboard</a>
+          </nav>
+          <div class="site-header__actions">
+            {% if user.is_staff %}
+              <a href="{% url 'admin:index' %}">Admin</a>
+            {% endif %}
+            <form method="post" action="{% url 'logout' %}">
+              {% csrf_token %}
+              <button type="submit">Log out</button>
+            </form>
+          </div>
         </div>
       {% endif %}
     </div>
