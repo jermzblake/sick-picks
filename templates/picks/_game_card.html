@@ -1,21 +1,26 @@
 {% load picks_extras %}
 <tr id="game-{{ card.game.id }}" class="slate-row{% if card.error %} slate-row--error{% endif %}">
   <td class="slate-matchup">
-    <div class="slate-matchup__teams">
-      <span class="matchup-card__team-row team-{{ card.game.away_team.abbreviation|lower }}">
-        <span class="team-badge" aria-hidden="true"></span>
-        <span class="team-name">{{ card.game.away_team.abbreviation }}</span>
-      </span>
-      <span class="slate-matchup__at" aria-hidden="true">@</span>
-      <span class="matchup-card__team-row team-{{ card.game.home_team.abbreviation|lower }}">
-        <span class="team-badge" aria-hidden="true"></span>
-        <span class="team-name">{{ card.game.home_team.abbreviation }}</span>
-      </span>
-    </div>
-    <p class="slate-matchup__kickoff">{{ card.game.kickoff_at|date:"D, M j, H:i T" }}</p>
-    {% if card.error %}
-      <p class="slate-error">{{ card.error }}</p>
-    {% endif %}
+    <a
+      class="slate-matchup__link"
+      href="{% url 'game-matchup' card.game.id %}"
+    >
+      <div class="slate-matchup__teams">
+        <span class="matchup-card__team-row team-{{ card.game.away_team.abbreviation|lower }}">
+          <span class="team-badge" aria-hidden="true"></span>
+          <span class="team-name">{{ card.game.away_team.abbreviation }}</span>
+        </span>
+        <span class="slate-matchup__at" aria-hidden="true">@</span>
+        <span class="matchup-card__team-row team-{{ card.game.home_team.abbreviation|lower }}">
+          <span class="team-badge" aria-hidden="true"></span>
+          <span class="team-name">{{ card.game.home_team.abbreviation }}</span>
+        </span>
+      </div>
+      <p class="slate-matchup__kickoff">{{ card.game.kickoff_at|date:"D, M j, H:i T" }}</p>
+      {% if card.error %}
+        <p class="slate-error">{{ card.error }}</p>
+      {% endif %}
+    </a>
   </td>
 
   <td class="slate-market" data-market="spread">
