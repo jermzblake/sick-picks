@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from decimal import Decimal
+from urllib.parse import quote_plus
 
 from django import forms
 from django.contrib.auth import get_user_model
@@ -12,7 +13,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
-from sports.models import Game, GameLine, Season
+from sports.models import Game, GameLine, Season, Team
 from sports.providers.the_odds_api.weeks import season_year_for, week_for
 from sports.seed import NFL_ABBREVIATION
 
@@ -22,6 +23,7 @@ from picks.models import Pick
 from picks.operations import (
     UpcomingGame,
     leaderboard_standings,
+    matchup_team_records,
     submit_pick,
     upcoming_games,
     user_picks,
@@ -74,6 +76,38 @@ def game_slate(request: HttpRequest) -> HttpResponse:
         'picks/slate.html',
         _slate_context(request, now, week, season),
     )
+
+
+@login_required
+def game_matchup(request: HttpRequest, game_id: int) -> HttpResponse:
+    game = get_object_or_404(
+        Game.objects.select_related('home_team', 'away_team', 'season'),
+        pk=game_id,
+    )
+    home_records, away_records = matchup_team_records(
+        game.home_team,
+        game.away_team,
+        game.season,
+    )
+    slate_url = reverse('game-slate')
+    if game.week is not None:
+        slate_url = f'{slate_url}?week={game.week}'
+    return render(
+        request,
+        'picks/matchup.html',
+        {
+            'game': game,
+            'home_records': home_records,
+            'away_records': away_records,
+            'home_search_url': _team_google_search_url(game.home_team),
+            'away_search_url': _team_google_search_url(game.away_team),
+            'slate_url': slate_url,
+        },
+    )
+
+
+def _team_google_search_url(team: Team) -> str:
+    return f'https://www.google.com/search?q={quote_plus(team.name)}'
 
 
 @login_required

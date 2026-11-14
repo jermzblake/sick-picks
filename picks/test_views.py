@@ -262,6 +262,102 @@ def test_get_on_the_pick_endpoint_is_not_allowed(client):
     assert response.status_code == 405
 
 
+def test_matchup_page_shows_records_and_google_links(client, monkeypatch):
+    _freeze(monkeypatch)
+    season = _season()
+    home = make_team(
+        season.league,
+        name='Green Bay Packers',
+        abbreviation='GB',
+    )
+    away = make_team(
+        season.league,
+        name='Chicago Bears',
+        abbreviation='CHI',
+    )
+    prior = make_game(
+        season,
+        home,
+        make_team(season.league),
+        week=_WEEK - 1 if _WEEK > 1 else 1,
+        kickoff_at=_KICKOFF - timedelta(days=7),
+    )
+    make_line(
+        prior,
+        home_spread=Decimal('-3.5'),
+        away_spread=Decimal('3.5'),
+        captured_at=_NOW - timedelta(days=8),
+    )
+    prior.status = 'final'
+    prior.home_score = 27
+    prior.away_score = 17
+    prior.save(update_fields=['status', 'home_score', 'away_score'])
+    game = make_game(
+        season,
+        home,
+        away,
+        kickoff_at=_KICKOFF,
+        week=_WEEK,
+    )
+    make_line(game, captured_at=_NOW - timedelta(hours=1))
+
+    client.force_login(make_user())
+    response = client.get(reverse('game-matchup', args=[game.id]))
+
+    assert response.status_code == 200
+    assert response.context['home_records'].win_loss.display() == '1-0'
+    assert response.context['home_records'].ats.display() == '1-0-0'
+    assert response.context['away_records'].win_loss.display() == '0-0'
+    assert response.context['away_records'].ats.display() == '0-0-0'
+    assert response.context['home_search_url'] == (
+        'https://www.google.com/search?q=Green+Bay+Packers'
+    )
+    assert response.context['away_search_url'] == (
+        'https://www.google.com/search?q=Chicago+Bears'
+    )
+    assert response.context['slate_url'].endswith(f'?week={game.week}')
+    body = response.content.decode()
+    assert 'Green Bay Packers' in body
+    assert 'Chicago Bears' in body
+    assert 'Weather coming soon' in body
+
+
+def test_matchup_page_requires_login(client):
+    season = _season()
+    game, _home, _away = _game(season)
+
+    response = client.get(reverse('game-matchup', args=[game.id]))
+
+    assert response.status_code == 302
+    assert reverse('login') in response.url
+
+
+def test_unknown_matchup_returns_404(client):
+    client.force_login(make_user())
+
+    response = client.get(reverse('game-matchup', args=[99999]))
+
+    assert response.status_code == 404
+
+
+def test_slate_matchup_cell_links_to_matchup_page(client, monkeypatch):
+    _freeze(monkeypatch)
+    season = _season()
+    game, home, away = _game(season, abbr='KC')
+    away.abbreviation = 'DEN'
+    away.save(update_fields=['abbreviation'])
+    make_line(game, captured_at=_NOW - timedelta(hours=1))
+    client.force_login(make_user())
+
+    response = client.get(reverse('game-slate'))
+
+    body = response.content.decode()
+    matchup_url = reverse('game-matchup', args=[game.id])
+    assert matchup_url in body
+    assert 'google.com/search' not in body
+    assert home.abbreviation in body
+
+
 def test_unknown_game_returns_404(client):
     client.force_login(make_user())
 

@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}{{ game.away_team.abbreviation }} @ {{ game.home_team.abbreviation }} — Sick Picks{% endblock %}
+
+{% block content %}
+  <p class="slate-nav">
+    <a href="{{ slate_url }}">Back to week{% if game.week %} {{ game.week }}{% endif %}</a>
+  </p>
+
+  <section class="matchup-page" aria-labelledby="matchup-heading">
+    <h1 id="matchup-heading" class="visually-hidden">
+      {{ game.away_team.name }} at {{ game.home_team.name }}
+    </h1>
+
+    <div class="matchup-page__teams">
+      <div class="matchup-page__team team-{{ game.away_team.abbreviation|lower }}">
+        <a
+          class="matchup-page__team-link"
+          href="{{ away_search_url }}"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <span class="team-badge matchup-page__badge" aria-hidden="true"></span>
+          <span class="matchup-page__name">{{ game.away_team.name }}</span>
+          <span class="matchup-page__abbr">{{ game.away_team.abbreviation }}</span>
+        </a>
+        <dl class="matchup-page__records">
+          <div>
+            <dt>Record</dt>
+            <dd>{{ away_records.win_loss.display }}</dd>
+          </div>
+          <div>
+            <dt>ATS</dt>
+            <dd>{{ away_records.ats.display }}</dd>
+          </div>
+        </dl>
+      </div>
+
+      <p class="matchup-page__at" aria-hidden="true">@</p>
+
+      <div class="matchup-page__team team-{{ game.home_team.abbreviation|lower }}">
+        <a
+          class="matchup-page__team-link"
+          href="{{ home_search_url }}"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <span class="team-badge matchup-page__badge" aria-hidden="true"></span>
+          <span class="matchup-page__name">{{ game.home_team.name }}</span>
+          <span class="matchup-page__abbr">{{ game.home_team.abbreviation }}</span>
+        </a>
+        <dl class="matchup-page__records">
+          <div>
+            <dt>Record</dt>
+            <dd>{{ home_records.win_loss.display }}</dd>
+          </div>
+          <div>
+            <dt>ATS</dt>
+            <dd>{{ home_records.ats.display }}</dd>
+          </div>
+        </dl>
+      </div>
+    </div>
+
+    <p class="matchup-page__kickoff">{{ game.kickoff_at|date:"D, M j, H:i T" }}</p>
+
+    <section class="matchup-page__weather" aria-labelledby="matchup-weather-heading">
+      <h2 id="matchup-weather-heading">Weather</h2>
+      <p>Weather coming soon</p>
+    </section>
+  </section>
+{% endblock %}

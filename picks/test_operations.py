@@ -23,9 +23,12 @@ from picks.models import Pick
 from picks.operations import (
     SettleReport,
     leaderboard_standings,
+    matchup_team_records,
     settle_game,
     settle_window,
     submit_pick,
+    team_ats,
+    team_win_loss,
     upcoming_games,
     user_picks,
 )
@@ -837,3 +840,249 @@ def test_settle_games_command_rejects_bad_bounds():
             kickoff_from='2026-10-20T07:00:00+00:00',
             kickoff_to='2026-10-13T07:00:00+00:00',
         )
+
+
+def test_team_win_loss_counts_wins_losses_and_ties():
+    league = make_league()
+    season = make_season(league)
+    team = make_team(league, name='Green Bay Packers', abbreviation='GB')
+    foe_a = make_team(league)
+    foe_b = make_team(league)
+    foe_c = make_team(league)
+    win = make_game(season, team, foe_a, week=1, kickoff_at=_KICKOFF)
+    _finish(win, status='final', home_score=24, away_score=17)
+    loss = make_game(
+        season,
+        foe_b,
+        team,
+        week=2,
+        kickoff_at=_KICKOFF + timedelta(days=7),
+    )
+    _finish(loss, status='final', home_score=21, away_score=14)
+    tie = make_game(
+        season,
+        team,
+        foe_c,
+        week=3,
+        kickoff_at=_KICKOFF + timedelta(days=14),
+    )
+    _finish(tie, status='final', home_score=20, away_score=20)
+    unfinished = make_game(
+        season,
+        team,
+        make_team(league),
+        week=4,
+        kickoff_at=_KICKOFF + timedelta(days=21),
+    )
+    _finish(unfinished, status='final')
+
+    record = team_win_loss(team, season)
+
+    assert record.wins == 1
+    assert record.losses == 1
+    assert record.ties == 1
+    assert record.display() == '1-1-1'
+
+
+def test_team_ats_uses_last_recorded_spread_and_skips_missing_lines():
+    league = make_league()
+    season = make_season(league)
+    team = make_team(league, abbreviation='KC')
+    cover_foe = make_team(league)
+    fail_foe = make_team(league)
+    push_foe = make_team(league)
+    skip_foe = make_team(league)
+
+    cover = make_game(season, team, cover_foe, week=1, kickoff_at=_KICKOFF)
+    make_line(
+        cover,
+        home_spread=Decimal('-7.0'),
+        away_spread=Decimal('7.0'),
+        captured_at=_EARLIER,
+    )
+    make_line(
+        cover,
+        home_spread=Decimal('-3.0'),
+        away_spread=Decimal('3.0'),
+        captured_at=_LATER,
+    )
+    _finish(cover, status='final', home_score=24, away_score=20)
+
+    fail = make_game(
+        season,
+        fail_foe,
+        team,
+        week=2,
+        kickoff_at=_KICKOFF + timedelta(days=7),
+    )
+    make_line(
+        fail,
+        home_spread=Decimal('-2.5'),
+        away_spread=Decimal('2.5'),
+        captured_at=_EARLIER,
+    )
+    _finish(fail, status='final', home_score=17, away_score=14)
+
+    push = make_game(
+        season,
+        team,
+        push_foe,
+        week=3,
+        kickoff_at=_KICKOFF + timedelta(days=14),
+    )
+    make_line(
+        push,
+        home_spread=Decimal('-3.0'),
+        away_spread=Decimal('3.0'),
+        captured_at=_EARLIER,
+    )
+    _finish(push, status='final', home_score=27, away_score=24)
+
+    skipped = make_game(
+        season,
+        team,
+        skip_foe,
+        week=4,
+        kickoff_at=_KICKOFF + timedelta(days=21),
+    )
+    make_line(
+        skipped,
+        home_spread=None,
+        away_spread=None,
+        home_spread_price=None,
+        away_spread_price=None,
+        home_moneyline=Decimal('1.5'),
+        away_moneyline=Decimal('2.5'),
+        captured_at=_EARLIER,
+    )
+    _finish(skipped, status='final', home_score=30, away_score=10)
+
+    record = team_ats(team, season)
+
+    assert record.wins == 1
+    assert record.losses == 1
+    assert record.pushes == 1
+    assert record.display() == '1-1-1'
+
+
+def test_matchup_team_records_returns_home_and_away_side_by_side():
+    league = make_league()
+    season = make_season(league)
+    home = make_team(league, abbreviation='SF')
+    away = make_team(league, abbreviation='SEA')
+    prior_home = make_game(
+        season,
+        home,
+        make_team(league),
+        week=1,
+        kickoff_at=_KICKOFF,
+    )
+    make_line(
+        prior_home,
+        home_spread=Decimal('-6.5'),
+        away_spread=Decimal('6.5'),
+        captured_at=_EARLIER,
+    )
+    _finish(prior_home, status='final', home_score=28, away_score=10)
+    prior_away = make_game(
+        season,
+        make_team(league),
+        away,
+        week=1,
+        kickoff_at=_KICKOFF + timedelta(hours=1),
+    )
+    make_line(
+        prior_away,
+        home_spread=Decimal('-1.0'),
+        away_spread=Decimal('1.0'),
+        captured_at=_EARLIER,
+    )
+    _finish(prior_away, status='final', home_score=20, away_score=17)
+
+    home_records, away_records = matchup_team_records(home, away, season)
+
+    assert home_records.win_loss.display() == '1-0'
+    assert home_records.ats.display() == '1-0-0'
+    assert away_records.win_loss.display() == '0-1'
+    assert away_records.ats.display() == '0-1-0'
+
+
+def test_team_ats_ignores_spreads_captured_after_kickoff():
+    league = make_league()
+    season = make_season(league)
+    team = make_team(league)
+    foe = make_team(league)
+    game = make_game(season, team, foe, week=1, kickoff_at=_KICKOFF)
+    make_line(
+        game,
+        home_spread=Decimal('-3.0'),
+        away_spread=Decimal('3.0'),
+        captured_at=_EARLIER,
+    )
+    make_line(
+        game,
+        home_spread=Decimal('-7.0'),
+        away_spread=Decimal('7.0'),
+        captured_at=_KICKOFF + timedelta(minutes=30),
+    )
+    _finish(game, status='final', home_score=24, away_score=20)
+
+    record = team_ats(team, season)
+
+    # 24-20 vs -3 covers; vs -7 would lose. Closing line must win.
+    assert record.display() == '1-0-0'
+
+
+def test_team_ats_uses_earlier_spread_when_later_line_has_none():
+    league = make_league()
+    season = make_season(league)
+    team = make_team(league)
+    foe = make_team(league)
+    game = make_game(season, team, foe, week=1, kickoff_at=_KICKOFF)
+    make_line(
+        game,
+        home_spread=Decimal('-3.0'),
+        away_spread=Decimal('3.0'),
+        captured_at=_EARLIER,
+    )
+    make_line(
+        game,
+        home_spread=None,
+        away_spread=None,
+        home_spread_price=None,
+        away_spread_price=None,
+        home_moneyline=Decimal('1.5'),
+        away_moneyline=Decimal('2.5'),
+        captured_at=_LATER,
+    )
+    _finish(game, status='final', home_score=24, away_score=20)
+
+    record = team_ats(team, season)
+
+    assert record.display() == '1-0-0'
+
+
+def test_matchup_team_records_uses_closing_spread_rules():
+    league = make_league()
+    season = make_season(league)
+    home = make_team(league)
+    away = make_team(league)
+    prior = make_game(season, home, make_team(league), week=1, kickoff_at=_KICKOFF)
+    make_line(
+        prior,
+        home_spread=Decimal('-3.0'),
+        away_spread=Decimal('3.0'),
+        captured_at=_EARLIER,
+    )
+    make_line(
+        prior,
+        home_spread=Decimal('-10.0'),
+        away_spread=Decimal('10.0'),
+        captured_at=_KICKOFF + timedelta(hours=1),
+    )
+    _finish(prior, status='final', home_score=24, away_score=20)
+
+    home_records, away_records = matchup_team_records(home, away, season)
+
+    assert home_records.ats.display() == '1-0-0'
+    assert away_records.ats.display() == '0-0-0'

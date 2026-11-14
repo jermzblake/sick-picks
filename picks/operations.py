@@ -20,7 +20,7 @@ from django.db.models import (
 )
 from django.db.models.functions import Coalesce
 from django.utils import timezone
-from sports.models import Game, GameLine, Season
+from sports.models import Game, GameLine, Season, Team
 from sports.providers.the_odds_api.weeks import week_window
 
 from picks.domain import market_terms, settle_pick
@@ -47,6 +47,34 @@ class UpcomingGame:
 class SettleReport:
     settled: int
     problems: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class WinLossRecord:
+    wins: int
+    losses: int
+    ties: int = 0
+
+    def display(self) -> str:
+        if self.ties:
+            return f'{self.wins}-{self.losses}-{self.ties}'
+        return f'{self.wins}-{self.losses}'
+
+
+@dataclass(frozen=True)
+class AtsRecord:
+    wins: int
+    losses: int
+    pushes: int = 0
+
+    def display(self) -> str:
+        return f'{self.wins}-{self.losses}-{self.pushes}'
+
+
+@dataclass(frozen=True)
+class TeamSeasonRecords:
+    win_loss: WinLossRecord
+    ats: AtsRecord
 
 
 def upcoming_games(
@@ -292,6 +320,97 @@ def _require_open(game: Game, now: datetime) -> None:
         raise ValidationError('Pick cannot be submitted at or after kickoff.')
 
 
+def team_win_loss(team: Team, season: Season) -> WinLossRecord:
+    return _team_season_records(team, season).win_loss
+
+
+def team_ats(team: Team, season: Season) -> AtsRecord:
+    return _team_season_records(team, season).ats
+
+
+def matchup_team_records(
+    home_team: Team,
+    away_team: Team,
+    season: Season,
+) -> tuple[TeamSeasonRecords, TeamSeasonRecords]:
+    """Return (home, away) season W-L and ATS from final games."""
+    team_ids = [home_team.pk, away_team.pk]
+    games = list(_final_scored_games(season, team_ids=team_ids))
+    lines = _closing_spread_lines(games)
+    return (
+        _records_for_team(home_team.pk, games, lines),
+        _records_for_team(away_team.pk, games, lines),
+    )
+
+
+def _team_season_records(team: Team, season: Season) -> TeamSeasonRecords:
+    games = list(_final_scored_games(season, team_ids=[team.pk]))
+    return _records_for_team(team.pk, games, _closing_spread_lines(games))
+
+
+def _records_for_team(
+    team_id: int,
+    games: Sequence[Game],
+    lines: dict[int, GameLine],
+) -> TeamSeasonRecords:
+    wl_wins = wl_losses = wl_ties = 0
+    ats_wins = ats_losses = ats_pushes = 0
+    for game in games:
+        if team_id not in (game.home_team_id, game.away_team_id):
+            continue
+        team_score, opponent_score = _team_scores(game, team_id)
+        if team_score > opponent_score:
+            wl_wins += 1
+        elif team_score < opponent_score:
+            wl_losses += 1
+        else:
+            wl_ties += 1
+        line = lines.get(game.id)
+        if line is None:
+            continue
+        spread = _team_spread(game, team_id, line)
+        if spread is None:
+            continue
+        margin = Decimal(team_score) + spread - Decimal(opponent_score)
+        if margin > 0:
+            ats_wins += 1
+        elif margin < 0:
+            ats_losses += 1
+        else:
+            ats_pushes += 1
+    return TeamSeasonRecords(
+        win_loss=WinLossRecord(wins=wl_wins, losses=wl_losses, ties=wl_ties),
+        ats=AtsRecord(wins=ats_wins, losses=ats_losses, pushes=ats_pushes),
+    )
+
+
+def _final_scored_games(
+    season: Season,
+    *,
+    team_ids: Sequence[int],
+) -> QuerySet[Game]:
+    return Game.objects.filter(
+        season=season,
+        status=Game.Status.FINAL,
+        home_score__isnull=False,
+        away_score__isnull=False,
+    ).filter(Q(home_team_id__in=team_ids) | Q(away_team_id__in=team_ids))
+
+
+def _team_scores(game: Game, team_id: int) -> tuple[int, int]:
+    if team_id == game.home_team_id:
+        return game.home_score, game.away_score
+    return game.away_score, game.home_score
+
+
+def _team_spread(game: Game, team_id: int, line: GameLine) -> Decimal | None:
+    if team_id == game.home_team_id:
+        return line.home_spread
+    if team_id == game.away_team_id:
+        return line.away_spread
+    return None
+
+
 def _latest_eligible_line(game: Game, now: datetime) -> GameLine | None:
     return (
         GameLine.objects.filter(game=game, captured_at__lte=now)
@@ -317,3 +436,36 @@ def _latest_eligible_lines(game_ids: list[int], now: datetime) -> dict[int, Game
         pk=Subquery(latest_pk),
     )
     return {line.game_id: line for line in lines}
+
+
+def _closing_spread_lines(games: Sequence[Game]) -> dict[int, GameLine]:
+    """Latest spread line at or before each game's kickoff."""
+    if not games:
+        return {}
+    game_ids = [game.id for game in games]
+    latest_pk = (
+        GameLine.objects.filter(
+            game_id=OuterRef('pk'),
+            home_spread__isnull=False,
+            captured_at__lte=OuterRef('kickoff_at'),
+        )
+        .order_by('-captured_at', '-id')
+        .values('pk')[:1]
+    )
+    closing_ids = {
+        game_id: line_id
+        for game_id, line_id in (
+            Game.objects.filter(pk__in=game_ids)
+            .annotate(closing_line_id=Subquery(latest_pk))
+            .values_list('pk', 'closing_line_id')
+        )
+        if line_id is not None
+    }
+    if not closing_ids:
+        return {}
+    lines = GameLine.objects.in_bulk(closing_ids.values())
+    return {
+        game_id: lines[line_id]
+        for game_id, line_id in closing_ids.items()
+        if line_id in lines
+    }
