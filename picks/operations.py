@@ -398,9 +398,13 @@ def _final_scored_games(
 
 
 def _team_scores(game: Game, team_id: int) -> tuple[int, int]:
+    home_score = game.home_score
+    away_score = game.away_score
+    if home_score is None or away_score is None:
+        raise ValueError('Final game is missing a score.')
     if team_id == game.home_team_id:
-        return game.home_score, game.away_score
-    return game.away_score, game.home_score
+        return home_score, away_score
+    return away_score, home_score
 
 
 def _team_spread(game: Game, team_id: int, line: GameLine) -> Decimal | None:
